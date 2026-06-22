@@ -1,6 +1,11 @@
 const state = {
   current: null,
   workflow: '',
+  workflowGenerated: '',
+  workflowDirty: false,
+  workflowValidation: null,
+  workflowExecution: null,
+  selectedStep: '',
   query: '',
 };
 
@@ -118,8 +123,18 @@ async function setCurrent(record) {
   try {
     const wf = await api(`/api/snapshots/${record.id}/workflow`);
     state.workflow = wf.yaml || '';
+    state.workflowGenerated = state.workflow;
+    state.workflowDirty = false;
+    state.workflowValidation = null;
+    state.workflowExecution = null;
+    state.selectedStep = '';
   } catch (_) {
     state.workflow = '';
+    state.workflowGenerated = '';
+    state.workflowDirty = false;
+    state.workflowValidation = null;
+    state.workflowExecution = null;
+    state.selectedStep = '';
   }
   renderAll();
   await loadSnapshots();
@@ -184,6 +199,7 @@ function passesFilter(...values) {
 }
 
 function renderActions() {
+  const controls = new Map((report()?.high_value_controls || []).map(c => [c.id, c]));
   const items = (report()?.top_actions || []).filter(a => passesFilter(a.label, a.selector, a.control_id, a.kind));
   const box = $('actionsList');
   if (!items.length) {
@@ -192,7 +208,12 @@ function renderActions() {
     return;
   }
   box.className = 'object-list';
-  box.innerHTML = items.map(a => `
+  box.innerHTML = items.map(a => {
+    const c = a.control_id ? controls.get(a.control_id) : null;
+    const recommended = c?.recommended_selector || a.selector;
+    const score = c?.selector_quality?.score;
+    const level = c?.selector_quality?.level || 'sin evaluar';
+    return `
     <div class="object-card">
       <div class="object-title">
         <strong>${escapeHtml(a.label || a.control_id || 'Acción')}</strong>
@@ -200,15 +221,17 @@ function renderActions() {
       </div>
       <div class="object-meta">
         <span>confianza ${(Number(a.confidence || 0) * 100).toFixed(0)}%</span>
+        ${score == null ? '' : `<span>selector ${score}/100 · ${escapeHtml(level)}</span>`}
         ${a.control_id ? `<span>control ${escapeHtml(truncate(a.control_id, 90))}</span>` : ''}
       </div>
       <div class="selector-row">
-        <code>${escapeHtml(a.selector)}</code>
-        <button class="mini copy" data-copy="${escapeHtml(a.selector)}">Copiar</button>
+        <code>${escapeHtml(recommended)}</code>
+        <button class="mini copy" data-copy="${escapeHtml(recommended)}">Copiar</button>
       </div>
+      ${c?.selector_quality?.reason ? `<p class="muted">Selector: ${escapeHtml(c.selector_quality.reason)}</p>` : ''}
       <p class="muted">${escapeHtml(a.rationale || '')}</p>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
   box.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', () => copyText(btn.dataset.copy, 'Selector copiado')));
 }
 
@@ -305,7 +328,162 @@ function renderRisks() {
 }
 
 function renderWorkflow() {
-  $('workflowYaml').textContent = state.workflow || 'Carga una captura para generar un workflow.';
+  const editor = $('workflowEditor');
+  if (editor && document.activeElement !== editor) {
+    editor.value = state.workflow || '';
+  }
+  renderWorkflowValidation();
+  renderWorkflowExecution();
+}
+
+function currentWorkflowYaml() {
+  return $('workflowEditor')?.value ?? state.workflow ?? '';
+}
+
+function renderWorkflowValidation() {
+  const validationBox = $('workflowValidation');
+  const stepBox = $('workflowStepList');
+  const select = $('workflowStepSelect');
+  if (!validationBox || !stepBox || !select) return;
+
+  const validation = state.workflowValidation;
+  if (!validation) {
+    validationBox.className = 'workflow-validation empty';
+    validationBox.textContent = state.workflow ? 'Workflow generado. Pulsa Validar para revisar sintaxis, riesgos y pasos.' : 'Valida el YAML para ver errores, avisos y pasos ejecutables.';
+    stepBox.className = 'workflow-step-list empty';
+    stepBox.textContent = 'Sin pasos cargados.';
+    select.innerHTML = '<option value="">Primero valida el workflow</option>';
+    return;
+  }
+
+  const errors = validation.errors || [];
+  const warnings = validation.warnings || [];
+  validationBox.className = `workflow-validation ${validation.ok ? 'ok' : 'bad'}`;
+  validationBox.innerHTML = `
+    <strong>${validation.ok ? 'Workflow válido' : 'Workflow con errores'}</strong>
+    <p>${escapeHtml(validation.workflow_name || 'Sin nombre')} · ${validation.step_count || 0} pasos · entorno ${escapeHtml(validation.environment || 'sin definir')}</p>
+    ${errors.length ? `<div><b>Errores</b><ul>${errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ul></div>` : ''}
+    ${warnings.length ? `<div><b>Avisos</b><ul>${warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
+  `;
+
+  const steps = validation.steps || [];
+  select.innerHTML = steps.length
+    ? steps.map(s => `<option value="${s.index}" ${String(state.selectedStep) === String(s.index) ? 'selected' : ''}>${String(s.index).padStart(2, '0')} · ${escapeHtml(s.action)} · ${escapeHtml(truncate(s.name, 60))}</option>`).join('')
+    : '<option value="">Sin pasos</option>';
+  if (!state.selectedStep && steps.length) state.selectedStep = String(steps[0].index);
+
+  if (!steps.length) {
+    stepBox.className = 'workflow-step-list empty';
+    stepBox.textContent = 'Sin pasos cargados.';
+    return;
+  }
+  stepBox.className = 'workflow-step-list';
+  stepBox.innerHTML = steps.map(step => `
+    <div class="workflow-step-card ${String(state.selectedStep) === String(step.index) ? 'active' : ''}" data-step="${step.index}">
+      <div class="step-head">
+        <span class="step-index">${String(step.index).padStart(2, '0')}</span>
+        <div class="step-title">
+          <strong>${escapeHtml(step.name)}</strong>
+          <span>${escapeHtml(step.action)}${step.optional ? ' · opcional' : ''}</span>
+        </div>
+        <span class="pill risk-${escapeHtml(step.risk_level)}">riesgo ${escapeHtml(step.risk_level)}</span>
+      </div>
+      <div class="step-target">
+        ${step.control_id ? `<code>control_id: ${escapeHtml(step.control_id)}</code>` : ''}
+        ${step.selector ? `<code>selector: ${escapeHtml(step.selector)}</code>` : ''}
+        ${step.text ? `<code>text: ${escapeHtml(step.text)}</code>` : ''}
+        ${step.value ? `<code>value: ${escapeHtml(step.value)}</code>` : ''}
+      </div>
+      <div class="step-notes">
+        ${(step.notes || []).map(n => `<span>• ${escapeHtml(n)}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+  stepBox.querySelectorAll('.workflow-step-card').forEach(card => {
+    card.addEventListener('click', () => {
+      state.selectedStep = card.dataset.step;
+      renderWorkflowValidation();
+    });
+  });
+}
+
+function renderWorkflowExecution() {
+  const box = $('workflowExecution');
+  if (!box) return;
+  const run = state.workflowExecution;
+  if (!run) {
+    box.className = 'workflow-execution empty';
+    box.textContent = 'Todavía no se ha ejecutado ningún workflow desde el estudio.';
+    return;
+  }
+  const report = run.report;
+  const steps = report?.steps || [];
+  const passed = steps.filter(s => s.status === 'passed').length;
+  const failed = steps.filter(s => s.status === 'failed').length;
+  const skipped = steps.filter(s => s.status === 'skipped_optional').length;
+  box.className = `workflow-execution ${run.ok ? 'ok' : 'bad'}`;
+  box.innerHTML = `
+    <strong>${escapeHtml(run.message)}</strong>
+    <p>Directorio de salida: <code>${escapeHtml(run.output_dir || 'no disponible')}</code></p>
+    <div class="execution-grid">
+      <div class="execution-metric"><strong>${escapeHtml(report?.status || (run.ok ? 'ok' : 'error'))}</strong><span>estado</span></div>
+      <div class="execution-metric"><strong>${steps.length}</strong><span>pasos ejecutados</span></div>
+      <div class="execution-metric"><strong>${passed}/${failed}/${skipped}</strong><span>ok / error / omitidos</span></div>
+      <div class="execution-metric"><strong>${report?.duration_ms ?? '—'}</strong><span>ms</span></div>
+    </div>
+    ${steps.length ? `<div class="workflow-step-list">${steps.map(s => `
+      <div class="workflow-step-card">
+        <div class="step-head">
+          <span class="step-index">${String(s.index).padStart(2, '0')}</span>
+          <div class="step-title"><strong>${escapeHtml(s.name)}</strong><span>${escapeHtml(s.action)} · ${escapeHtml(s.status)} · ${s.duration_ms} ms · ${s.attempts} intento(s)</span></div>
+        </div>
+        ${s.error ? `<p class="muted">Error: ${escapeHtml(s.error)}</p>` : ''}
+        ${(s.evidence || []).length ? `<div class="step-notes">${s.evidence.map(e => `<span>evidencia: ${escapeHtml(e)}</span>`).join('')}</div>` : ''}
+      </div>`).join('')}</div>` : ''}
+  `;
+}
+
+async function validateWorkflow() {
+  const yaml = currentWorkflowYaml();
+  if (!yaml.trim()) return toast('El workflow está vacío');
+  const btn = $('validateWorkflowBtn');
+  setBusy(btn, true, 'Validando…');
+  try {
+    const result = await api('/api/workflows/validate', {
+      method: 'POST',
+      body: JSON.stringify({ yaml }),
+    });
+    state.workflow = yaml;
+    state.workflowValidation = result;
+    renderWorkflow();
+    toast(result.ok ? 'Workflow válido' : 'Workflow con errores');
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    setBusy(btn, false);
+  }
+}
+
+async function runWorkflow(untilStep = null) {
+  const yaml = currentWorkflowYaml();
+  if (!yaml.trim()) return toast('El workflow está vacío');
+  const button = untilStep ? $('runUntilStepBtn') : $('runWorkflowBtn');
+  setBusy(button, true, untilStep ? `Ejecutando hasta paso ${untilStep}…` : 'Ejecutando…');
+  try {
+    const result = await api('/api/workflows/run', {
+      method: 'POST',
+      body: JSON.stringify({ yaml, until_step: untilStep ? Number(untilStep) : null }),
+    });
+    state.workflow = yaml;
+    state.workflowValidation = result.validation;
+    state.workflowExecution = result;
+    renderWorkflow();
+    toast(result.ok ? 'Ejecución completada' : 'Ejecución con error');
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    setBusy(button, false);
+  }
 }
 
 async function captureBrowser() {
@@ -354,8 +532,10 @@ function downloadJson() {
 }
 
 function downloadWorkflow() {
-  if (!state.workflow) return toast('No hay workflow');
-  downloadText(`fiori_workflow_${record().id}.yaml`, 'text/yaml', state.workflow);
+  const yaml = currentWorkflowYaml();
+  if (!yaml.trim()) return toast('No hay workflow');
+  const suffix = record()?.id || 'editado';
+  downloadText(`fiori_workflow_${suffix}.yaml`, 'text/yaml', yaml);
 }
 
 function copySummary() {
@@ -368,6 +548,11 @@ function copySummary() {
     ...(report().recommendations || []).map(x => `- ${x}`),
   ].join('\n');
   copyText(text, 'Resumen copiado');
+}
+
+function copyExecutionReport() {
+  if (!state.workflowExecution) return toast('No hay informe de ejecución');
+  copyText(JSON.stringify(state.workflowExecution, null, 2), 'Informe copiado');
 }
 
 function wireEvents() {
@@ -384,8 +569,16 @@ function wireEvents() {
   $('globalSearch').addEventListener('input', (e) => { state.query = e.target.value; renderAll(); });
   $('downloadJsonBtn').addEventListener('click', downloadJson);
   $('downloadWorkflowBtn').addEventListener('click', downloadWorkflow);
+  $('downloadWorkflowEditorBtn')?.addEventListener('click', downloadWorkflow);
   $('copySummaryBtn').addEventListener('click', copySummary);
-  $('copyWorkflowBtn').addEventListener('click', () => state.workflow ? copyText(state.workflow, 'Workflow copiado') : toast('No hay workflow'));
+  $('copyWorkflowBtn').addEventListener('click', () => { const yaml = currentWorkflowYaml(); yaml.trim() ? copyText(yaml, 'Workflow copiado') : toast('No hay workflow'); });
+  $('validateWorkflowBtn')?.addEventListener('click', validateWorkflow);
+  $('runWorkflowBtn')?.addEventListener('click', () => runWorkflow(null));
+  $('runUntilStepBtn')?.addEventListener('click', () => { const step = $('workflowStepSelect')?.value || state.selectedStep; step ? runWorkflow(step) : toast('Selecciona un paso'); });
+  $('workflowStepSelect')?.addEventListener('change', (e) => { state.selectedStep = e.target.value; renderWorkflowValidation(); });
+  $('workflowEditor')?.addEventListener('input', (e) => { state.workflow = e.target.value; state.workflowDirty = state.workflow !== state.workflowGenerated; state.workflowValidation = null; });
+  $('resetWorkflowBtn')?.addEventListener('click', () => { state.workflow = state.workflowGenerated || ''; state.workflowDirty = false; state.workflowValidation = null; state.workflowExecution = null; renderWorkflow(); toast('Workflow restaurado'); });
+  $('copyExecutionReportBtn')?.addEventListener('click', copyExecutionReport);
   $('expandTreeBtn').addEventListener('click', () => toast('El árbol ya muestra hasta 12 niveles. Usa el buscador para aislar ramas.'));
 }
 

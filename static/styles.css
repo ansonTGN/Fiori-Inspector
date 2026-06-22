@@ -535,3 +535,208 @@ code { background: rgba(0,0,0,.06); padding: 2px 6px; border-radius: 7px; }
   .help-actions .primary,
   .help-actions .ghost { width: 100%; }
 }
+
+/* Workflow Lab ---------------------------------------------------------- */
+.workflow-lab-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.workflow-editor-card,
+.workflow-report-card,
+.workflow-side-card {
+  overflow: hidden;
+}
+
+.workflow-toolbar,
+.workflow-runbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 18px 0;
+}
+
+.workflow-runbar {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 22px;
+  background: rgba(255,255,255,.34);
+}
+
+.compact-field {
+  min-width: 260px;
+  margin: 0;
+  flex: 1;
+}
+
+.workflow-editor {
+  width: 100%;
+  min-height: 520px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  tab-size: 2;
+  border-radius: 24px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.72);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75), inset 0 -18px 38px rgba(0,0,0,.035);
+}
+
+.workflow-validation,
+.workflow-execution {
+  border-radius: 22px;
+  padding: 16px;
+  background: rgba(255,255,255,.48);
+  border: 1px solid rgba(255,255,255,.62);
+  color: var(--muted);
+}
+
+.workflow-validation.ok {
+  color: #125c2b;
+  background: rgba(52, 199, 89, .14);
+  border-color: rgba(52, 199, 89, .32);
+}
+
+.workflow-validation.bad,
+.workflow-execution.bad {
+  color: #8a1f11;
+  background: rgba(255, 59, 48, .12);
+  border-color: rgba(255, 59, 48, .28);
+}
+
+.workflow-execution.ok {
+  color: #17476b;
+  background: rgba(0, 122, 255, .10);
+  border-color: rgba(0, 122, 255, .22);
+}
+
+.workflow-step-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  max-height: 620px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.workflow-step-card {
+  border-radius: 20px;
+  padding: 14px;
+  background: rgba(255,255,255,.58);
+  border: 1px solid rgba(255,255,255,.72);
+  box-shadow: 0 10px 30px rgba(0,0,0,.045);
+}
+
+.workflow-step-card.active {
+  outline: 2px solid rgba(0,122,255,.35);
+  background: rgba(255,255,255,.84);
+}
+
+.step-head {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.step-index {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,122,255,.12);
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.step-title {
+  flex: 1;
+}
+
+.step-title strong {
+  display: block;
+  color: var(--text);
+}
+
+.step-title span {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.risk-low,
+.risk-bajo {
+  background: rgba(52,199,89,.15);
+  color: #116329;
+}
+
+.risk-medium,
+.risk-medio {
+  background: rgba(255,149,0,.16);
+  color: #8a5200;
+}
+
+.risk-high,
+.risk-alto {
+  background: rgba(255,59,48,.14);
+  color: #9a1c12;
+}
+
+.step-target,
+.step-notes {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.step-target code {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.execution-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.execution-metric {
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(255,255,255,.58);
+  border: 1px solid rgba(255,255,255,.7);
+}
+
+.execution-metric strong {
+  display: block;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.execution-metric span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .workflow-lab-grid {
+    grid-template-columns: 1fr;
+  }
+  .execution-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

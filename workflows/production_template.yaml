@@ -1,0 +1,66 @@
+name: "Plantilla productiva Fiori"
+version: "1.0"
+environment: "dev"
+description: "Ejemplo robusto con variables, esperas, reintentos, validaciones y evidencias. Sustituir URL, control_id y datos."
+
+variables:
+  base_url: "https://fiori.empresa.com/sap/bc/ui2/flp"
+  dato_busqueda: "4500001234"
+
+defaults:
+  timeout_secs: 30
+  retry:
+    attempts: 3
+    delay_ms: 800
+  capture_before_each_step: false
+  capture_after_each_step: false
+
+steps:
+  - action: goto
+    name: "Abrir Fiori Launchpad"
+    url: "{{vars.base_url}}"
+
+  - action: wait_ui5
+    name: "Esperar SAPUI5"
+    timeout_secs: 90
+
+  - action: snapshot
+    name: "Evidencia inicial"
+    save_as: "01_inicio.json"
+
+  - action: input
+    name: "Informar búsqueda"
+    control_id: "REEMPLAZAR_POR_CONTROL_ID_UI5"
+    value: "{{vars.dato_busqueda}}"
+    clear: true
+    assert:
+      exists: true
+      visible: true
+
+  - action: click
+    name: "Ejecutar búsqueda"
+    control_id: "REEMPLAZAR_POR_BOTON_UI5"
+    retry:
+      attempts: 3
+      delay_ms: 800
+    assert:
+      ui5_ready: true
+
+  - action: wait_for
+    name: "Esperar resultado visible"
+    selector: "REEMPLAZAR_POR_SELECTOR_RESULTADO"
+    visible: true
+    timeout_secs: 45
+
+  - action: assert
+    name: "Validar que aparece el dato buscado"
+    assert:
+      text_contains: "{{vars.dato_busqueda}}"
+
+  - action: snapshot
+    name: "Evidencia final estructurada"
+    save_as: "99_resultado_final.json"
+
+  - action: screenshot
+    name: "Evidencia final visual"
+    save_as: "99_resultado_final.png"

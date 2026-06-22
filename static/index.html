@@ -185,15 +185,66 @@
       </section>
 
       <section id="workflow" class="view">
-        <article class="card glass">
+        <div class="workflow-lab-grid">
+          <article class="card glass workflow-editor-card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Automatización declarativa editable</p>
+                <h3>Laboratorio de workflow YAML</h3>
+              </div>
+              <span class="pill">Validar · Probar · Ejecutar</span>
+            </div>
+
+            <p class="muted">
+              Copia, edita y valida el workflow antes de ejecutarlo. Para verificar paso a paso, selecciona un paso y usa
+              <strong>Ejecutar hasta paso seleccionado</strong>. Así puedes comprobar la pantalla tras cada acción sin convertir el flujo en una caja negra.
+            </p>
+
+            <div class="workflow-toolbar">
+              <button class="ghost" id="copyWorkflowBtn">Copiar YAML</button>
+              <button class="ghost" id="downloadWorkflowEditorBtn">Descargar YAML</button>
+              <button class="secondary" id="validateWorkflowBtn">Validar</button>
+              <button class="primary" id="runWorkflowBtn">Ejecutar completo</button>
+            </div>
+
+            <label class="field">
+              <span>Workflow editable</span>
+              <textarea id="workflowEditor" class="workflow-editor" spellcheck="false" placeholder="Carga una captura para generar un workflow, o pega aquí tu YAML."></textarea>
+            </label>
+
+            <div class="workflow-runbar">
+              <label class="field compact-field">
+                <span>Verificar hasta paso</span>
+                <select id="workflowStepSelect">
+                  <option value="">Primero valida el workflow</option>
+                </select>
+              </label>
+              <button class="secondary" id="runUntilStepBtn">Ejecutar hasta paso seleccionado</button>
+              <button class="ghost" id="resetWorkflowBtn">Restaurar generado</button>
+            </div>
+          </article>
+
+          <aside class="card glass workflow-side-card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Control de calidad</p>
+                <h3>Validación y pasos</h3>
+              </div>
+            </div>
+            <div id="workflowValidation" class="workflow-validation empty">Valida el YAML para ver errores, avisos y pasos ejecutables.</div>
+            <div id="workflowStepList" class="workflow-step-list empty">Sin pasos cargados.</div>
+          </aside>
+        </div>
+
+        <article class="card glass workflow-report-card">
           <div class="card-head">
             <div>
-              <p class="eyebrow">Automatización declarativa</p>
-              <h3>Workflow YAML generado</h3>
+              <p class="eyebrow">Evidencia de ejecución</p>
+              <h3>Resultado del último lanzamiento</h3>
             </div>
-            <button class="ghost" id="copyWorkflowBtn">Copiar</button>
+            <button class="ghost" id="copyExecutionReportBtn">Copiar informe</button>
           </div>
-          <pre id="workflowYaml" class="code-block">Carga una captura para generar un workflow.</pre>
+          <div id="workflowExecution" class="workflow-execution empty">Todavía no se ha ejecutado ningún workflow desde el estudio.</div>
         </article>
       </section>
 
@@ -291,7 +342,7 @@
             <div class="timeline-step"><span>03</span><div><strong>Captura la pantalla Fiori</strong><p>Pega la URL Fiori. Si hay login corporativo, entra manualmente y espera a que la página quede cargada.</p></div></div>
             <div class="timeline-step"><span>04</span><div><strong>Lee el resumen</strong><p>Revisa calidad, número de controles, acciones candidatas, endpoints OData y riesgos.</p></div></div>
             <div class="timeline-step"><span>05</span><div><strong>Elige acciones fiables</strong><p>Prioriza selectores basados en IDs estables, textos claros y controles visibles. Evita coordenadas de pantalla.</p></div></div>
-            <div class="timeline-step"><span>06</span><div><strong>Genera un workflow</strong><p>Copia el YAML generado y conviértelo en una automatización repetible y auditable.</p></div></div>
+            <div class="timeline-step"><span>06</span><div><strong>Genera y prueba un workflow</strong><p>Edita el YAML, valida cada paso y ejecútalo de forma completa o incremental para revisar evidencias.</p></div></div>
           </div>
         </article>
 
@@ -309,7 +360,7 @@
               <div><b>Árbol UI5</b><span>Jerarquía lógica de la pantalla, parecida a un árbol de objetos SAP GUI.</span></div>
               <div><b>Bindings / OData</b><span>Datos ligados a controles y servicios detectados.</span></div>
               <div><b>Riesgos</b><span>Problemas que pueden romper la automatización: IDs dinámicos, baja confianza o ausencia de UI5.</span></div>
-              <div><b>Workflow</b><span>Base YAML para repetir pasos de navegación e interacción.</span></div>
+              <div><b>Workflow</b><span>Editor YAML para copiar, modificar, validar, ejecutar completo o verificar hasta un paso concreto.</span></div>
             </div>
           </article>
 

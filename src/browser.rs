@@ -1,6 +1,7 @@
 use crate::config::AppConfig;
 use crate::models::PageSnapshot;
 use anyhow::{bail, Context, Result};
+use base64::{engine::general_purpose, Engine as _};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -371,42 +372,295 @@ pub async fn wait_for_ui5(
 }
 
 pub async fn click(page: &mut CdpPage, selector: &str) -> Result<()> {
-    let selector_json = serde_json::to_string(selector)?;
-    let expression = format!(
-        r#"(function(selector) {{
-            const el = document.querySelector(selector);
-            if (!el) throw new Error('No se encontró selector para click: ' + selector);
-            el.scrollIntoView({{ block: 'center', inline: 'center' }});
-            el.focus && el.focus();
-            el.click();
-            return true;
-        }})({selector_json})"#
-    );
-    page.evaluate(&expression)
-        .await
-        .with_context(|| format!("Falló click CDP sobre selector: {selector}"))?;
-    Ok(())
+    click_target(page, Some(selector), None, None).await
 }
 
 pub async fn input(page: &mut CdpPage, selector: &str, value: &str, clear: bool) -> Result<()> {
-    let selector_json = serde_json::to_string(selector)?;
-    let value_json = serde_json::to_string(value)?;
+    input_target(page, Some(selector), None, value, clear).await
+}
+
+pub async fn wait_for_target(
+    page: &mut CdpPage,
+    selector: Option<&str>,
+    control_id: Option<&str>,
+    text: Option<&str>,
+    timeout_secs: u64,
+    require_visible: bool,
+) -> Result<()> {
+    let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+    let selector_json = serde_json::to_string(&selector)?;
+    let control_id_json = serde_json::to_string(&control_id)?;
+    let text_json = serde_json::to_string(&text)?;
     let expression = format!(
-        r#"(function(selector, value, clear) {{
-            const el = document.querySelector(selector);
-            if (!el) throw new Error('No se encontró selector para input: ' + selector);
-            el.scrollIntoView({{ block: 'center', inline: 'center' }});
+        r#"(function(selector, controlId, text, requireVisible) {{
+            const result = window.__fioriInspectorFindTarget(selector, controlId, text);
+            if (!result || !result.el) return false;
+            if (!requireVisible) return true;
+            const r = result.el.getBoundingClientRect ? result.el.getBoundingClientRect() : null;
+            const cs = window.getComputedStyle ? getComputedStyle(result.el) : null;
+            return !!r && r.width > 0 && r.height > 0 && (!cs || (cs.visibility !== 'hidden' && cs.display !== 'none'));
+        }})({selector_json}, {control_id_json}, {text_json}, {require_visible})"#
+    );
+    install_runtime_helpers(page).await?;
+    loop {
+        if let Ok(v) = page.evaluate(&expression).await {
+            if v.get("value").and_then(Value::as_bool).unwrap_or(false) {
+                return Ok(());
+            }
+        }
+        if Instant::now() > deadline {
+            bail!(
+                "Timeout esperando target. selector={:?}, control_id={:?}, text={:?}",
+                selector,
+                control_id,
+                text
+            );
+        }
+        sleep(Duration::from_millis(400)).await;
+    }
+}
+
+pub async fn click_target(
+    page: &mut CdpPage,
+    selector: Option<&str>,
+    control_id: Option<&str>,
+    text: Option<&str>,
+) -> Result<()> {
+    let selector_json = serde_json::to_string(&selector)?;
+    let control_id_json = serde_json::to_string(&control_id)?;
+    let text_json = serde_json::to_string(&text)?;
+    install_runtime_helpers(page).await?;
+    let expression = format!(
+        r#"(function(selector, controlId, text) {{
+            const result = window.__fioriInspectorFindTarget(selector, controlId, text);
+            if (!result || !result.el) throw new Error('No se encontró target para click');
+            const el = result.el;
+            el.scrollIntoView && el.scrollIntoView({{ block: 'center', inline: 'center' }});
             el.focus && el.focus();
-            if (clear) el.value = '';
-            el.value = value;
+            if (result.ctrl && typeof result.ctrl.firePress === 'function') {{
+                result.ctrl.firePress();
+                return {{ ok: true, mode: 'ui5_firePress' }};
+            }}
+            if (result.ctrl && typeof result.ctrl.ontap === 'function') {{
+                result.ctrl.ontap({{ srcControl: result.ctrl }});
+                return {{ ok: true, mode: 'ui5_ontap' }};
+            }}
+            el.click();
+            return {{ ok: true, mode: 'dom_click' }};
+        }})({selector_json}, {control_id_json}, {text_json})"#
+    );
+    page.evaluate(&expression).await.with_context(|| {
+        format!(
+            "Falló click target selector={:?} control_id={:?} text={:?}",
+            selector, control_id, text
+        )
+    })?;
+    Ok(())
+}
+
+pub async fn input_target(
+    page: &mut CdpPage,
+    selector: Option<&str>,
+    control_id: Option<&str>,
+    value: &str,
+    clear: bool,
+) -> Result<()> {
+    let selector_json = serde_json::to_string(&selector)?;
+    let control_id_json = serde_json::to_string(&control_id)?;
+    let value_json = serde_json::to_string(value)?;
+    install_runtime_helpers(page).await?;
+    let expression = format!(
+        r#"(function(selector, controlId, value, clear) {{
+            const result = window.__fioriInspectorFindTarget(selector, controlId, null);
+            if (!result || !result.el) throw new Error('No se encontró target para input');
+            const el = result.el;
+            el.scrollIntoView && el.scrollIntoView({{ block: 'center', inline: 'center' }});
+            el.focus && el.focus();
+            if (result.ctrl && typeof result.ctrl.setValue === 'function') {{
+                result.ctrl.setValue(value);
+                if (typeof result.ctrl.fireLiveChange === 'function') result.ctrl.fireLiveChange({{ value }});
+                if (typeof result.ctrl.fireChange === 'function') result.ctrl.fireChange({{ value }});
+                return {{ ok: true, mode: 'ui5_setValue' }};
+            }}
+            if (clear && 'value' in el) el.value = '';
+            const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+            const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+            if (desc && desc.set) desc.set.call(el, value); else el.value = value;
             el.dispatchEvent(new Event('input', {{ bubbles: true }}));
             el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-            return true;
-        }})({selector_json}, {value_json}, {clear})"#
+            el.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+            return {{ ok: true, mode: 'dom_input' }};
+        }})({selector_json}, {control_id_json}, {value_json}, {clear})"#
     );
-    page.evaluate(&expression)
+    page.evaluate(&expression).await.with_context(|| {
+        format!(
+            "Falló input target selector={:?} control_id={:?}",
+            selector, control_id
+        )
+    })?;
+    Ok(())
+}
+
+pub async fn select_target(
+    page: &mut CdpPage,
+    selector: Option<&str>,
+    control_id: Option<&str>,
+    value: &str,
+) -> Result<()> {
+    let selector_json = serde_json::to_string(&selector)?;
+    let control_id_json = serde_json::to_string(&control_id)?;
+    let value_json = serde_json::to_string(value)?;
+    install_runtime_helpers(page).await?;
+    let expression = format!(
+        r#"(function(selector, controlId, value) {{
+            const result = window.__fioriInspectorFindTarget(selector, controlId, null);
+            if (!result || !result.el) throw new Error('No se encontró target para select');
+            const el = result.el;
+            if (result.ctrl && typeof result.ctrl.setSelectedKey === 'function') {{
+                result.ctrl.setSelectedKey(value);
+                if (typeof result.ctrl.fireSelectionChange === 'function') result.ctrl.fireSelectionChange({{ selectedItem: result.ctrl.getSelectedItem && result.ctrl.getSelectedItem() }});
+                if (typeof result.ctrl.fireChange === 'function') result.ctrl.fireChange({{ selectedItem: result.ctrl.getSelectedItem && result.ctrl.getSelectedItem(), selectedItemId: value }});
+                return {{ ok: true, mode: 'ui5_setSelectedKey' }};
+            }}
+            if ('value' in el) {{
+                el.value = value;
+                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                return {{ ok: true, mode: 'dom_select' }};
+            }}
+            throw new Error('El target no permite selección directa');
+        }})({selector_json}, {control_id_json}, {value_json})"#
+    );
+    page.evaluate(&expression).await.with_context(|| {
+        format!(
+            "Falló select target selector={:?} control_id={:?}",
+            selector, control_id
+        )
+    })?;
+    Ok(())
+}
+
+pub async fn assert_condition(
+    page: &mut CdpPage,
+    selector: Option<&str>,
+    control_id: Option<&str>,
+    text_contains: Option<&str>,
+    url_contains: Option<&str>,
+    exists: Option<bool>,
+    visible: Option<bool>,
+    ui5_ready: Option<bool>,
+    timeout_secs: u64,
+) -> Result<()> {
+    let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+    let selector_json = serde_json::to_string(&selector)?;
+    let control_id_json = serde_json::to_string(&control_id)?;
+    let text_json = serde_json::to_string(&text_contains)?;
+    let url_json = serde_json::to_string(&url_contains)?;
+    let exists_json = serde_json::to_string(&exists)?;
+    let visible_json = serde_json::to_string(&visible)?;
+    let ui5_json = serde_json::to_string(&ui5_ready)?;
+    install_runtime_helpers(page).await?;
+    let expression = format!(
+        r#"(function(selector, controlId, textContains, urlContains, existsExpected, visibleExpected, ui5ReadyExpected) {{
+            const checks = [];
+            if (urlContains !== null && urlContains !== undefined) checks.push({{ ok: location.href.includes(urlContains), message: 'url_contains=' + urlContains }});
+            if (ui5ReadyExpected !== null && ui5ReadyExpected !== undefined) {{
+                const ready = !!(window.sap && sap.ui && sap.ui.getCore && sap.ui.getCore().isInitialized && sap.ui.getCore().isInitialized());
+                checks.push({{ ok: ready === ui5ReadyExpected, message: 'ui5_ready=' + ui5ReadyExpected }});
+            }}
+            if (selector || controlId || textContains) {{
+                const result = window.__fioriInspectorFindTarget(selector, controlId, null);
+                const el = result && result.el;
+                if (existsExpected !== null && existsExpected !== undefined) checks.push({{ ok: (!!el) === existsExpected, message: 'exists=' + existsExpected }});
+                if (visibleExpected !== null && visibleExpected !== undefined) {{
+                    const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+                    const cs = el && window.getComputedStyle ? getComputedStyle(el) : null;
+                    const isVisible = !!r && r.width > 0 && r.height > 0 && (!cs || (cs.visibility !== 'hidden' && cs.display !== 'none'));
+                    checks.push({{ ok: isVisible === visibleExpected, message: 'visible=' + visibleExpected }});
+                }}
+                if (textContains) {{
+                    const hay = (el && (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || '')) || document.body.innerText || '';
+                    checks.push({{ ok: hay.includes(textContains), message: 'text_contains=' + textContains }});
+                }}
+            }}
+            const failed = checks.filter(c => !c.ok);
+            return {{ ok: failed.length === 0, failed: failed.map(f => f.message) }};
+        }})({selector_json}, {control_id_json}, {text_json}, {url_json}, {exists_json}, {visible_json}, {ui5_json})"#
+    );
+
+    loop {
+        let v = page.evaluate(&expression).await?;
+        let obj = v.get("value").cloned().unwrap_or(Value::Null);
+        if obj.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            return Ok(());
+        }
+        if Instant::now() > deadline {
+            bail!("Assertion fallida: {}", obj);
+        }
+        sleep(Duration::from_millis(400)).await;
+    }
+}
+
+pub async fn capture_screenshot_png(page: &mut CdpPage) -> Result<Vec<u8>> {
+    let result = page
+        .client
+        .command(
+            "Page.captureScreenshot",
+            json!({ "format": "png", "captureBeyondViewport": true }),
+        )
         .await
-        .with_context(|| format!("Falló input CDP sobre selector: {selector}"))?;
+        .context("Falló Page.captureScreenshot vía CDP")?;
+    let data = result
+        .get("data")
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("CDP no devolvió imagen base64"))?;
+    general_purpose::STANDARD
+        .decode(data)
+        .context("No se pudo decodificar screenshot base64")
+}
+
+async fn install_runtime_helpers(page: &mut CdpPage) -> Result<()> {
+    let expression = r#"
+        (function() {
+            if (window.__fioriInspectorFindTarget) return true;
+            window.__fioriInspectorFindTarget = function(selector, controlId, text) {
+                function visible(el) {
+                    if (!el) return false;
+                    const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+                    const cs = window.getComputedStyle ? getComputedStyle(el) : null;
+                    return !!r && r.width > 0 && r.height > 0 && (!cs || (cs.visibility !== 'hidden' && cs.display !== 'none'));
+                }
+                function controlById(id) {
+                    try {
+                        if (window.sap && sap.ui && sap.ui.getCore) return sap.ui.getCore().byId(id);
+                    } catch (_) {}
+                    return null;
+                }
+                if (controlId) {
+                    const ctrl = controlById(controlId);
+                    const el = ctrl && ctrl.getDomRef && ctrl.getDomRef();
+                    if (el) return { ctrl, el, source: 'control_id' };
+                    const byDom = document.getElementById(controlId);
+                    if (byDom) return { ctrl, el: byDom, source: 'dom_id' };
+                }
+                if (selector) {
+                    const el = document.querySelector(selector);
+                    if (el) return { ctrl: null, el, source: 'selector' };
+                }
+                if (text) {
+                    const candidates = Array.from(document.querySelectorAll('button,a,input,textarea,[role="button"],[role="link"],[role="textbox"],[role="tab"],[aria-label]'));
+                    const needle = String(text).trim().toLowerCase();
+                    const el = candidates.find(e => {
+                        const hay = [e.innerText, e.textContent, e.value, e.title, e.getAttribute('aria-label')].filter(Boolean).join(' ').toLowerCase();
+                        return hay.includes(needle) && visible(e);
+                    });
+                    if (el) return { ctrl: null, el, source: 'text' };
+                }
+                return null;
+            };
+            return true;
+        })();
+    "#;
+    page.evaluate(expression).await?;
     Ok(())
 }
 

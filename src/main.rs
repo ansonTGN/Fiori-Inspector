@@ -1,3 +1,4 @@
+mod automation;
 mod browser;
 mod config;
 mod models;

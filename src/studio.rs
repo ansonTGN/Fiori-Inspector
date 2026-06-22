@@ -1,9 +1,11 @@
+use crate::automation::{assess_selector, production_workflow_from_snapshot, SelectorAssessment};
 use crate::browser;
 use crate::config::AppConfig;
 use crate::models::{
     ActionHint, BindingInfo, InteractorKind, ODataEndpoint, PageSnapshot, Ui5Control,
 };
 use crate::static_html;
+use crate::workflow::{self, Workflow, WorkflowExecutionReport, WorkflowStep};
 use anyhow::{Context, Result};
 use axum::extract::{Path as AxumPath, State};
 use axum::http::StatusCode;
@@ -91,6 +93,8 @@ pub struct ControlCard {
     pub interactor: Option<InteractorKind>,
     pub confidence: f32,
     pub risk_flags: Vec<String>,
+    pub recommended_selector: Option<String>,
+    pub selector_quality: Option<SelectorAssessment>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +119,49 @@ pub struct WorkflowExport {
     pub yaml: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowStudioRequest {
+    pub yaml: String,
+    pub output_dir: Option<String>,
+    pub until_step: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowValidationResponse {
+    pub ok: bool,
+    pub errors: Vec<String>,
+    pub warnings: Vec<String>,
+    pub workflow_name: Option<String>,
+    pub version: Option<String>,
+    pub environment: Option<String>,
+    pub step_count: usize,
+    pub steps: Vec<WorkflowStepPreview>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowStepPreview {
+    pub index: usize,
+    pub name: String,
+    pub action: String,
+    pub selector: Option<String>,
+    pub control_id: Option<String>,
+    pub text: Option<String>,
+    pub value: Option<String>,
+    pub timeout_secs: Option<u64>,
+    pub optional: bool,
+    pub risk_level: String,
+    pub notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowRunResponse {
+    pub ok: bool,
+    pub message: String,
+    pub output_dir: String,
+    pub report: Option<WorkflowExecutionReport>,
+    pub validation: WorkflowValidationResponse,
+}
+
 pub async fn serve(cfg: AppConfig, bind: &str, static_dir: PathBuf) -> Result<()> {
     let state = StudioState {
         cfg,
@@ -129,6 +176,8 @@ pub async fn serve(cfg: AppConfig, bind: &str, static_dir: PathBuf) -> Result<()
         .route("/api/snapshots/:id", get(get_snapshot))
         .route("/api/snapshots/:id/report", get(get_report))
         .route("/api/snapshots/:id/workflow", get(generate_workflow))
+        .route("/api/workflows/validate", post(validate_workflow_yaml))
+        .route("/api/workflows/run", post(run_workflow_yaml))
         .nest_service(
             "/",
             ServeDir::new(static_dir).append_index_html_on_directories(true),
@@ -248,6 +297,261 @@ async fn generate_workflow(
     }))
 }
 
+async fn validate_workflow_yaml(
+    Json(req): Json<WorkflowStudioRequest>,
+) -> std::result::Result<Json<WorkflowValidationResponse>, ApiError> {
+    Ok(Json(validate_workflow_text(&req.yaml)))
+}
+
+async fn run_workflow_yaml(
+    State(state): State<StudioState>,
+    Json(req): Json<WorkflowStudioRequest>,
+) -> std::result::Result<Json<WorkflowRunResponse>, ApiError> {
+    let validation = validate_workflow_text(&req.yaml);
+    if !validation.ok {
+        return Ok(Json(WorkflowRunResponse {
+            ok: false,
+            message:
+                "El workflow contiene errores de validación. Corrige el YAML antes de ejecutar."
+                    .to_string(),
+            output_dir: String::new(),
+            report: None,
+            validation,
+        }));
+    }
+
+    let mut parsed: Workflow = serde_yaml::from_str(&req.yaml)
+        .map_err(|e| ApiError::bad_request(format!("YAML no válido: {e}")))?;
+
+    if let Some(until) = req.until_step {
+        if until == 0 || until > parsed.steps.len() {
+            return Err(ApiError::bad_request(format!(
+                "until_step debe estar entre 1 y {}.",
+                parsed.steps.len()
+            )));
+        }
+        parsed.name = format!("{} · verificación hasta paso {}", parsed.name, until);
+        parsed.steps.truncate(until);
+    }
+
+    let output_dir = safe_workflow_output_dir(req.output_dir.as_deref())?;
+    let run_result = workflow::run_workflow(&state.cfg, &parsed, &output_dir).await;
+    let report_path = output_dir.join("execution_report.json");
+    let report = match tokio::fs::read_to_string(&report_path).await {
+        Ok(raw) => serde_json::from_str::<WorkflowExecutionReport>(&raw).ok(),
+        Err(_) => None,
+    };
+
+    match run_result {
+        Ok(()) => Ok(Json(WorkflowRunResponse {
+            ok: true,
+            message: "Workflow ejecutado correctamente.".to_string(),
+            output_dir: output_dir.display().to_string(),
+            report,
+            validation,
+        })),
+        Err(e) => Ok(Json(WorkflowRunResponse {
+            ok: false,
+            message: format!("Workflow finalizado con error: {e}"),
+            output_dir: output_dir.display().to_string(),
+            report,
+            validation,
+        })),
+    }
+}
+
+fn validate_workflow_text(yaml: &str) -> WorkflowValidationResponse {
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+
+    if yaml.trim().is_empty() {
+        return WorkflowValidationResponse {
+            ok: false,
+            errors: vec!["El editor YAML está vacío.".to_string()],
+            warnings,
+            workflow_name: None,
+            version: None,
+            environment: None,
+            step_count: 0,
+            steps: Vec::new(),
+        };
+    }
+
+    let parsed = match serde_yaml::from_str::<Workflow>(yaml) {
+        Ok(w) => w,
+        Err(e) => {
+            return WorkflowValidationResponse {
+                ok: false,
+                errors: vec![format!("YAML no válido: {e}")],
+                warnings,
+                workflow_name: None,
+                version: None,
+                environment: None,
+                step_count: 0,
+                steps: Vec::new(),
+            };
+        }
+    };
+
+    if parsed.name.trim().is_empty() {
+        errors.push("El workflow necesita un campo 'name' no vacío.".to_string());
+    }
+    if parsed.steps.is_empty() {
+        errors.push("El workflow necesita al menos un paso en 'steps'.".to_string());
+    }
+    if parsed
+        .environment
+        .as_deref()
+        .unwrap_or_default()
+        .eq_ignore_ascii_case("prod")
+    {
+        warnings.push(
+            "Entorno marcado como prod: ejecuta primero en desarrollo/calidad y revisa evidencias."
+                .to_string(),
+        );
+    }
+
+    let steps = parsed
+        .steps
+        .iter()
+        .enumerate()
+        .map(|(idx, step)| preview_step(idx + 1, step, &mut errors, &mut warnings))
+        .collect::<Vec<_>>();
+
+    WorkflowValidationResponse {
+        ok: errors.is_empty(),
+        errors,
+        warnings,
+        workflow_name: Some(parsed.name),
+        version: parsed.version,
+        environment: parsed.environment,
+        step_count: steps.len(),
+        steps,
+    }
+}
+
+fn preview_step(
+    index: usize,
+    step: &WorkflowStep,
+    errors: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) -> WorkflowStepPreview {
+    let action = step.action.to_ascii_lowercase();
+    let name = step
+        .name
+        .clone()
+        .unwrap_or_else(|| format!("{} #{}", step.action, index));
+    let mut notes = Vec::new();
+    let needs_target = matches!(
+        action.as_str(),
+        "click"
+            | "press_control"
+            | "input"
+            | "set_value"
+            | "select"
+            | "select_key"
+            | "wait_for"
+            | "wait_selector"
+            | "wait_control"
+    );
+
+    if needs_target && step.selector.is_none() && step.control_id.is_none() && step.text.is_none() {
+        errors.push(format!(
+            "Paso {index} ({action}) necesita selector, control_id o text."
+        ));
+        notes.push("Falta destino de interacción.".to_string());
+    }
+    if action == "goto" && step.url.as_deref().unwrap_or_default().trim().is_empty() {
+        errors.push(format!("Paso {index} (goto) necesita url."));
+    }
+    if matches!(
+        action.as_str(),
+        "input" | "set_value" | "select" | "select_key"
+    ) && step.value.is_none()
+    {
+        errors.push(format!("Paso {index} ({action}) necesita value."));
+    }
+    if action == "press" && step.key.is_none() {
+        errors.push(format!("Paso {index} (press) necesita key."));
+    }
+    if matches!(action.as_str(), "snapshot" | "screenshot") && step.save_as.is_none() {
+        errors.push(format!("Paso {index} ({action}) necesita save_as."));
+    }
+
+    let mut risk_level = "bajo".to_string();
+    if let Some(selector) = &step.selector {
+        let assessment = assess_selector(selector, step.control_id.as_deref(), &[]);
+        risk_level = match assessment.level.as_str() {
+            "alta" | "high" | "bueno" | "estable" => "bajo".to_string(),
+            "media" | "medium" => "medio".to_string(),
+            _ => {
+                if assessment.score < 45 {
+                    "alto".to_string()
+                } else if assessment.score < 70 {
+                    "medio".to_string()
+                } else {
+                    "bajo".to_string()
+                }
+            }
+        };
+        notes.push(format!(
+            "Selector {}: {}",
+            assessment.score, assessment.reason
+        ));
+        if selector.starts_with("#__")
+            || selector == "button"
+            || selector == "input"
+            || selector == "div"
+        {
+            risk_level = "alto".to_string();
+            warnings.push(format!(
+                "Paso {index}: selector potencialmente frágil: {selector}"
+            ));
+        }
+    } else if step.control_id.is_some() {
+        notes.push("Usa control_id UI5; estrategia preferente frente a DOM genérico.".to_string());
+    } else if step.text.is_some() {
+        risk_level = "medio".to_string();
+        notes.push(
+            "Búsqueda por texto: útil como fallback, pero sensible a idioma y cambios de etiqueta."
+                .to_string(),
+        );
+    }
+
+    if step.optional.unwrap_or(false) {
+        notes.push("Paso opcional: si falla, la ejecución continuará con advertencia.".to_string());
+    }
+
+    WorkflowStepPreview {
+        index,
+        name,
+        action,
+        selector: step.selector.clone(),
+        control_id: step.control_id.clone(),
+        text: step.text.clone(),
+        value: step.value.clone(),
+        timeout_secs: step.timeout_secs,
+        optional: step.optional.unwrap_or(false),
+        risk_level,
+        notes,
+    }
+}
+
+fn safe_workflow_output_dir(requested: Option<&str>) -> std::result::Result<PathBuf, ApiError> {
+    let base = PathBuf::from("runs/studio");
+    if let Some(raw) = requested.map(str::trim).filter(|v| !v.is_empty()) {
+        let candidate = PathBuf::from(raw);
+        if candidate.is_absolute() || raw.contains("..") {
+            return Err(ApiError::bad_request(
+                "output_dir debe ser una ruta relativa segura sin '..'.",
+            ));
+        }
+        Ok(candidate)
+    } else {
+        Ok(base.join(Uuid::new_v4().to_string()))
+    }
+}
+
 fn make_record(snapshot: PageSnapshot, name: Option<String>) -> SnapshotRecord {
     let report = build_report(&snapshot);
     SnapshotRecord {
@@ -341,6 +645,13 @@ fn control_card(c: &Ui5Control) -> Option<ControlCard> {
     if !(actionable || bound || visible) {
         return None;
     }
+    let mut selector_quality = c
+        .selector_candidates
+        .iter()
+        .map(|s| assess_selector(s, Some(&c.id), &c.risk_flags))
+        .collect::<Vec<_>>();
+    selector_quality.sort_by(|a, b| b.score.cmp(&a.score));
+    let best = selector_quality.first().cloned();
     Some(ControlCard {
         id: c.id.clone(),
         label: c
@@ -359,6 +670,8 @@ fn control_card(c: &Ui5Control) -> Option<ControlCard> {
         interactor: c.interactor.clone(),
         confidence: c.confidence,
         risk_flags: c.risk_flags.clone(),
+        recommended_selector: best.as_ref().map(|s| s.selector.clone()),
+        selector_quality: best,
     })
 }
 
@@ -522,33 +835,7 @@ fn quality_score(snapshot: &PageSnapshot, risks: &[RiskCard]) -> u8 {
 }
 
 fn workflow_from_snapshot(snapshot: &PageSnapshot) -> String {
-    let mut out = String::new();
-    out.push_str("name: \"Workflow Fiori generado desde Inspector Studio\"\n");
-    out.push_str("description: \"Borrador generado automáticamente. Revisar selectores, validaciones y datos sensibles antes de uso productivo.\"\n\n");
-    out.push_str("steps:\n");
-    if let Some(url) = &snapshot.url {
-        out.push_str(&format!("  - action: goto\n    url: {:?}\n", url));
-        out.push_str("  - action: wait_ui5\n    timeout_secs: 90\n");
-    }
-    for action in snapshot.action_hints.iter().take(8) {
-        match action.kind {
-            InteractorKind::Input | InteractorKind::ComboBox => {
-                out.push_str(&format!("  - action: input\n    selector: {:?}\n    value: \"<valor>\"\n    clear: true\n", action.selector));
-            }
-            InteractorKind::Button
-            | InteractorKind::Link
-            | InteractorKind::Tab
-            | InteractorKind::MenuItem => {
-                out.push_str(&format!(
-                    "  - action: click\n    selector: {:?}\n",
-                    action.selector
-                ));
-            }
-            _ => {}
-        }
-    }
-    out.push_str("  - action: snapshot\n    save_as: \"resultado_final.json\"\n");
-    out
+    production_workflow_from_snapshot(snapshot)
 }
 
 #[derive(Debug)]

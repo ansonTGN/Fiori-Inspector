@@ -1,9 +1,9 @@
 [package]
 name = "fiori-inspector-studio"
-version = "0.3.0"
+version = "0.5.0"
 edition = "2021"
 authors = ["Angel A. Urbina"]
-description = "Interactive Rust studio to inspect SAP Fiori/SAPUI5 using static HTML analysis and Chrome DevTools Protocol without ChromeDriver."
+description = "Production-oriented Rust studio to inspect SAP Fiori/SAPUI5, edit and validate YAML workflows, and execute robust automation using CDP, UI5 metadata and evidence reports."
 license = "MIT"
 repository = "https://github.com/ansonTGN/Fiori-Inspector"
 

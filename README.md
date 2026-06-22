@@ -1,222 +1,361 @@
 # Fiori Inspector Studio
 
-**Interactive Rust application for analyzing SAP Fiori / SAPUI5 applications without ChromeDriver.**
+**Herramienta profesional en Rust para analizar aplicaciones SAP Fiori / SAPUI5 y construir automatizaciones robustas, editables, verificables y trazables.**
 
-Author: **Angel A. Urbina**
-
----
-
-## Overview
-
-**Fiori Inspector Studio** is a professional Rust-based tool designed to analyze SAP Fiori and SAPUI5 web applications, extract their technical structure and help prepare robust automation workflows.
-
-The project is focused on understanding Fiori screens in a way conceptually similar to how SAP GUI Scripting helps understand classic SAP GUI transactions, but adapted to the modern web architecture of SAP Fiori.
-
-The tool analyzes:
-
-* Rendered HTML DOM.
-* SAPUI5 logical control structure.
-* Buttons, inputs, links, tables, tabs and panels.
-* UI5 identifiers.
-* Candidate CSS selectors.
-* Bindings and model paths when detectable.
-* Possible OData traces.
-* Automation actions.
-* YAML workflows.
-
-This version does **not** use ChromeDriver or GeckoDriver. Live analysis is based on **Chrome DevTools Protocol — CDP**.
+Autor: **Angel A. Urbina**
 
 ---
 
-## Why This Project Exists
+## 1. Descripción general
 
-SAP Fiori applications are dynamic web applications built on SAPUI5. They are not simple static HTML pages.
+**Fiori Inspector Studio** es una aplicación desarrollada en Rust para analizar aplicaciones **SAP Fiori / SAPUI5**, extraer su estructura técnica y facilitar la creación de workflows profesionales de automatización.
 
-A Fiori screen may include:
+La herramienta permite inspeccionar una pantalla Fiori, identificar controles, revisar selectores, generar workflows YAML, editarlos desde la propia interfaz, validarlos y ejecutarlos paso a paso o de forma completa.
 
-* XML views.
-* Controllers.
-* Fragments.
-* Dynamically generated controls.
-* OData bindings.
-* Smart controls.
-* Tables.
-* Value helps.
-* Launchpad navigation.
-* Runtime-generated IDs.
+El objetivo principal es convertir el análisis visual y técnico de una aplicación Fiori en una automatización clara, mantenible y auditable.
 
-Because of this, automating Fiori only with mouse coordinates or simple HTML scraping is fragile.
-
-**Fiori Inspector Studio** helps inspect the application structure before automation, making it easier to select stable technical references and design maintainable workflows.
+Esta versión incorpora un **Laboratorio visual de Workflows** que permite trabajar directamente con scripts YAML desde la pantalla principal de la aplicación.
 
 ---
 
-## Main Features
+## 2. Objetivo del proyecto
 
-### Apple-like Local Studio
+SAP Fiori sustituye o complementa muchos procesos que antes se realizaban en SAP GUI clásico. Sin embargo, automatizar Fiori no debe hacerse mediante coordenadas de pantalla ni clicks frágiles sobre HTML generado dinámicamente.
 
-The application includes a local browser interface with a clean, intuitive and Apple-inspired visual design.
+Fiori Inspector Studio busca ofrecer una alternativa profesional:
 
-Default local URL:
+* Analizar la estructura real de una pantalla Fiori.
+* Identificar controles SAPUI5.
+* Detectar acciones automatizables.
+* Proponer selectores.
+* Valorar riesgos de estabilidad.
+* Generar workflows YAML.
+* Editar los workflows desde una pantalla visual.
+* Validar cada paso antes de ejecutar.
+* Ejecutar un flujo completo o hasta un paso concreto.
+* Generar evidencias de ejecución.
+
+La filosofía del proyecto es clara: **primero entender, después automatizar**.
+
+---
+
+## 3. Características principales
+
+### 3.1. Estudio interactivo local
+
+La aplicación incluye una interfaz web local con diseño limpio, claro e inspirado en una estética tipo Apple.
+
+Dirección por defecto:
 
 ```text
 http://127.0.0.1:7820
 ```
 
-The interface includes:
+Desde esta interfaz se puede:
 
-* Main dashboard.
-* Beginner-friendly help.
-* Live Fiori analysis.
-* Static HTML analysis.
-* Control tree view.
-* Action candidates.
-* Selector recommendations.
-* Workflow generation.
-* Technical analysis panels.
+* Analizar una página Fiori viva.
+* Analizar HTML estático.
+* Ver controles detectados.
+* Revisar acciones candidatas.
+* Consultar selectores recomendados.
+* Generar workflows YAML.
+* Editar workflows.
+* Validar workflows.
+* Ejecutar workflows completos.
+* Ejecutar workflows hasta un paso seleccionado.
+* Revisar resultados y evidencias.
 
 ---
 
-### No ChromeDriver Required
+### 3.2. Sin ChromeDriver
 
-This version removes the dependency on ChromeDriver.
+Esta versión **no utiliza ChromeDriver** ni GeckoDriver.
 
-Previous architecture:
+La comunicación con el navegador se realiza mediante **Chrome DevTools Protocol — CDP**.
+
+Arquitectura descartada:
 
 ```text
 Rust → ChromeDriver → Chrome → SAP Fiori
 ```
 
-Current architecture:
+Arquitectura actual:
 
 ```text
 Rust → Chrome DevTools Protocol → Chrome / Chromium → SAP Fiori
 ```
 
-Chrome or Chromium is launched with a local remote debugging port, normally:
-
-```text
-http://127.0.0.1:9222
-```
+Esto simplifica el entorno técnico y evita depender de versiones concretas de ChromeDriver.
 
 ---
 
-### Live SAP Fiori Analysis
+### 3.3. Análisis Fiori en vivo
 
-The tool can connect to a running Chrome or Chromium session and analyze a real Fiori application.
+La herramienta puede conectarse a Chrome o Chromium mediante CDP y analizar una aplicación Fiori real.
 
-It can extract:
+Puede extraer:
 
-* Page URL.
-* Page title.
-* DOM snapshot.
-* UI5 controls when available.
-* Visible actions.
-* Candidate selectors.
-* Input fields.
-* Buttons.
-* Tables.
+* URL actual.
+* Título de página.
+* DOM HTML renderizado.
+* Controles SAPUI5 cuando están disponibles.
+* Botones.
+* Inputs.
 * Links.
-* Control texts.
-* Accessibility attributes.
-* Automation confidence.
+* Tablas.
+* Pestañas.
+* Textos visibles.
+* Atributos ARIA.
+* Selectores candidatos.
+* Identificadores UI5.
+* Riesgo de automatización.
+* Posibles bindings o rutas de modelo.
 
 ---
 
-### Static HTML Analysis
+### 3.4. Análisis de HTML estático
 
-The application can also analyze saved HTML files.
+También se puede analizar un HTML guardado o simulado.
 
-This is useful for:
+Este modo es útil para:
 
-* Offline testing.
-* Training.
-* Technical documentation.
-* Demonstrations.
-* Evidence capture.
-* Parser validation.
+* Pruebas offline.
+* Simulaciones.
+* Formación.
+* Desarrollo del parser.
+* Documentación técnica.
+* Validación inicial de la interfaz.
 
-Static HTML mode is less powerful than live CDP mode because SAPUI5 runtime information may not be available in a saved HTML file.
-
----
-
-### Action Discovery
-
-The tool identifies potential automation targets such as:
-
-* Buttons.
-* Search fields.
-* Input fields.
-* Links.
-* Tabs.
-* Menu items.
-* Table cells.
-* Table rows.
-* Toolbar actions.
-
-Each action may include:
-
-* Visible text.
-* Selector candidate.
-* HTML tag.
-* UI5 ID when available.
-* Role.
-* Confidence score.
-* Suggested interaction type.
+Limitación: un HTML estático no siempre conserva toda la información del runtime SAPUI5.
 
 ---
 
-### Workflow Support
+### 3.5. Laboratorio visual de Workflows
 
-The project supports YAML workflows to transform analysis into repeatable automation scenarios.
+La mejora más importante de esta versión es la nueva pantalla **Workflow**.
 
-Example:
+Desde esta pantalla se puede:
+
+* Ver el workflow generado automáticamente.
+* Copiar el YAML.
+* Editar el YAML directamente.
+* Descargar el workflow.
+* Restaurar el workflow original.
+* Validar sintaxis y estructura.
+* Ver errores y avisos.
+* Ver pasos detectados.
+* Revisar riesgo por paso.
+* Detectar selectores frágiles.
+* Ejecutar el workflow completo.
+* Ejecutar solo hasta un paso seleccionado.
+* Revisar informe de ejecución.
+
+El objetivo es que una persona pueda pasar de un análisis visual a una automatización controlada sin salir de la aplicación.
+
+---
+
+## 4. Mejoras introducidas en esta versión
+
+### 4.1. Editor YAML integrado
+
+La aplicación incorpora un editor visual para modificar workflows YAML.
+
+Esto permite ajustar directamente:
+
+* URLs.
+* Selectores.
+* IDs UI5.
+* Datos de entrada.
+* Timeouts.
+* Reintentos.
+* Validaciones.
+* Capturas.
+* Nombres de pasos.
+* Variables.
+
+Ejemplo:
 
 ```yaml
-name: "Fiori Material Search"
+name: "Consulta Fiori de material"
+version: "1.0"
+environment: "dev"
+
+variables:
+  material: "4500001234"
+
+defaults:
+  timeout_secs: 30
+  retry:
+    attempts: 3
+    delay_ms: 800
 
 steps:
   - action: goto
+    name: "Abrir aplicación"
     url: "https://fiori.example.com/sap/bc/ui2/flp"
 
   - action: wait_ui5
-    timeout_secs: 60
-
-  - action: snapshot
-    save_as: "01_home_snapshot.json"
+    name: "Esperar carga SAPUI5"
+    timeout_secs: 90
 
   - action: input
-    selector: "input[id$='--searchField-I']"
-    value: "4500001234"
+    name: "Introducir material"
+    selector: "[id$='--materialInput']"
+    value: "${material}"
 
-  - action: press
-    key: "Enter"
+  - action: click
+    name: "Ejecutar búsqueda"
+    selector: "[id$='--searchButton']"
 
-  - action: snapshot
-    save_as: "02_after_search.json"
+  - action: assert_visible
+    name: "Validar tabla de resultados"
+    selector: "[id$='--resultTable']"
+
+  - action: screenshot
+    name: "Captura final"
+    save_as: "99_resultado_final.png"
 ```
 
 ---
 
-## Technical Stack
+### 4.2. Validación de workflows
 
-The project uses:
+Antes de ejecutar, el workflow puede validarse desde la interfaz.
 
-* **Rust**
-* **Axum**
-* **Tokio**
-* **Chrome DevTools Protocol**
-* **Reqwest**
-* **Serde**
-* **Serde JSON**
-* **Serde YAML**
-* **TOML**
-* **Scraper**
-* **HTML / CSS / JavaScript**
+La validación revisa:
+
+* Sintaxis YAML.
+* Existencia de `steps`.
+* Acciones soportadas.
+* Pasos sin selector cuando lo necesitan.
+* Pasos sin URL cuando son de navegación.
+* Selectores de alto riesgo.
+* IDs aparentemente generados.
+* Falta de capturas o validaciones.
+* Posibles problemas de mantenibilidad.
+
+La API interna utilizada es:
+
+```text
+POST /api/workflows/validate
+```
 
 ---
 
-## Project Structure
+### 4.3. Ejecución completa
+
+Desde la pantalla Workflow se puede ejecutar todo el flujo definido.
+
+La API interna utilizada es:
+
+```text
+POST /api/workflows/run
+```
+
+Ejemplo conceptual de payload:
+
+```json
+{
+  "yaml": "name: ...\nsteps: ...",
+  "until_step": null
+}
+```
+
+---
+
+### 4.4. Ejecución hasta un paso seleccionado
+
+La pantalla permite seleccionar un paso y ejecutar el workflow solo hasta ese punto.
+
+Esto resulta útil para:
+
+* Verificar progresivamente.
+* Depurar selectores.
+* Evitar ejecutar acciones sensibles.
+* Validar la navegación antes de modificar datos.
+* Comprobar condiciones intermedias.
+* Construir workflows de forma segura.
+
+Ejemplo conceptual:
+
+```json
+{
+  "yaml": "name: ...\nsteps: ...",
+  "until_step": 4
+}
+```
+
+---
+
+### 4.5. Previsualización de pasos
+
+El laboratorio muestra una lista estructurada de pasos detectados, incluyendo:
+
+* Número de paso.
+* Acción.
+* Nombre descriptivo.
+* Selector.
+* `control_id`.
+* Timeout.
+* Riesgo estimado.
+* Avisos.
+
+Esto facilita que una persona sin experiencia avanzada pueda entender qué hará el workflow antes de ejecutarlo.
+
+---
+
+### 4.6. Detección de selectores frágiles
+
+La herramienta avisa cuando detecta selectores poco recomendables, como:
+
+```css
+#__button0
+#__input1
+button
+div
+.sapMBtn
+.sapMInputBaseInner
+```
+
+Y recomienda usar selectores más estables, como:
+
+```css
+[id$='--searchButton']
+[id$='--materialInput']
+button[aria-label='Buscar']
+input[aria-label='Material']
+[title='Ejecutar']
+```
+
+---
+
+### 4.7. Evidencias de ejecución
+
+Cada ejecución puede generar evidencias para revisión posterior.
+
+Ejemplo de estructura:
+
+```text
+runs/
+└── ejecucion-fiori/
+    ├── execution_report.json
+    ├── 01_estado_inicial.json
+    ├── 99_resultado_final.json
+    ├── 99_resultado_final.png
+    └── evidence/
+```
+
+Esto permite:
+
+* Auditar la ejecución.
+* Revisar qué ocurrió.
+* Comparar estados.
+* Documentar errores.
+* Entregar evidencias funcionales o técnicas.
+
+---
+
+## 5. Arquitectura del proyecto
 
 ```text
 fiori-inspector-studio-rs/
@@ -228,16 +367,20 @@ fiori-inspector-studio-rs/
 │   └── local.toml.example
 ├── docs/
 │   ├── arquitectura.md
-│   └── arquitectura_interactiva.md
+│   ├── arquitectura_interactiva.md
+│   ├── automatizacion_productiva.md
+│   └── workflow_lab.md
 ├── examples/
 │   └── static_fiori_fragment.html
 ├── workflows/
-│   └── fiori_sample_workflow.yaml
+│   ├── fiori_sample_workflow.yaml
+│   └── production_template.yaml
 ├── static/
 │   ├── index.html
 │   ├── styles.css
 │   └── app.js
 └── src/
+    ├── automation.rs
     ├── browser.rs
     ├── config.rs
     ├── lib.rs
@@ -253,46 +396,66 @@ fiori-inspector-studio-rs/
 
 ---
 
-## Requirements
+## 6. Stack técnico
 
-Required:
+El proyecto utiliza:
 
-* Rust stable.
-* Cargo.
-* Chrome or Chromium.
-* Linux, Windows or macOS.
-
-Recommended:
-
-* Ubuntu 24.04 or later.
-* Chromium or Google Chrome.
-* Access to an authorized SAP Fiori environment.
-* Permission to inspect or automate the target application.
+* **Rust** como lenguaje principal.
+* **Tokio** para ejecución asíncrona.
+* **Axum** para servidor web local.
+* **Chrome DevTools Protocol** para interacción con Chrome/Chromium.
+* **Reqwest** para comunicación HTTP.
+* **Serde** para serialización.
+* **Serde JSON** para snapshots e informes.
+* **Serde YAML** para workflows.
+* **TOML** para configuración.
+* **Scraper** para análisis HTML estático.
+* **HTML / CSS / JavaScript** para la interfaz.
+* **YAML** como lenguaje declarativo de automatización.
 
 ---
 
-## Installation
+## 7. Requisitos
 
-Clone the repository:
+### Requisitos básicos
+
+* Rust estable.
+* Cargo.
+* Google Chrome o Chromium.
+* Linux, Windows o macOS.
+
+### Requisitos recomendados
+
+* Ubuntu 24.04 o superior.
+* Chromium o Google Chrome actualizado.
+* Acceso autorizado al entorno SAP Fiori.
+* Permisos para analizar o automatizar la aplicación.
+* Entorno de desarrollo o pruebas para validación inicial.
+
+---
+
+## 8. Instalación
+
+Clonar el repositorio:
 
 ```bash
 git clone https://github.com/ansonTGN/Fiori-Inspector.git
 cd Fiori-Inspector
 ```
 
-Build:
+Compilar:
 
 ```bash
 cargo build
 ```
 
-Run:
+Ejecutar:
 
 ```bash
 cargo run
 ```
 
-Open:
+Abrir en el navegador:
 
 ```text
 http://127.0.0.1:7820
@@ -300,15 +463,15 @@ http://127.0.0.1:7820
 
 ---
 
-## Configuration
+## 9. Configuración
 
-Copy the example configuration:
+Copiar configuración de ejemplo:
 
 ```bash
 cp config/local.toml.example config/local.toml
 ```
 
-Example:
+Ejemplo:
 
 ```toml
 [server]
@@ -325,13 +488,13 @@ window_height = 1000
 user_data_dir = "./.browser-profile-cdp"
 ```
 
-If you use Chromium instead of Google Chrome:
+Si se usa Chromium:
 
 ```toml
 chrome_binary = "chromium"
 ```
 
-or:
+o:
 
 ```toml
 chrome_binary = "chromium-browser"
@@ -339,21 +502,21 @@ chrome_binary = "chromium-browser"
 
 ---
 
-## Running the Studio
+## 10. Uso básico
 
-Simple mode:
+### 10.1. Arrancar el estudio
 
 ```bash
 cargo run
 ```
 
-Explicit mode:
+o:
 
 ```bash
 cargo run -- serve
 ```
 
-Then open:
+Abrir:
 
 ```text
 http://127.0.0.1:7820
@@ -361,9 +524,9 @@ http://127.0.0.1:7820
 
 ---
 
-## Manual Chrome / Chromium CDP Start
+### 10.2. Arrancar Chrome manualmente con CDP
 
-If automatic launch is disabled, start Chrome manually:
+Si se prefiere no usar lanzamiento automático:
 
 ```bash
 google-chrome \
@@ -372,7 +535,7 @@ google-chrome \
   --window-size=1600,1000
 ```
 
-Or with Chromium:
+Con Chromium:
 
 ```bash
 chromium \
@@ -381,23 +544,15 @@ chromium \
   --window-size=1600,1000
 ```
 
-Check CDP status:
+Verificar CDP:
 
 ```bash
 curl http://127.0.0.1:9222/json/version
 ```
 
-Then run:
-
-```bash
-cargo run
-```
-
 ---
 
-## CLI Usage
-
-### Analyze Static HTML
+### 10.3. Analizar HTML estático
 
 ```bash
 cargo run -- analyze-html \
@@ -405,22 +560,28 @@ cargo run -- analyze-html \
   --output runs/static_snapshot.json
 ```
 
-### Capture a Live Fiori Snapshot
+---
+
+### 10.4. Capturar snapshot de Fiori en vivo
 
 ```bash
 cargo run -- snapshot-cdp \
-  --url "https://your-fiori-server/sap/bc/ui2/flp" \
+  --url "https://tu-servidor-fiori/sap/bc/ui2/flp" \
   --output runs/fiori_snapshot.json
 ```
 
-### Print Summary
+---
+
+### 10.5. Ver resumen
 
 ```bash
 cargo run -- summary \
   --input runs/fiori_snapshot.json
 ```
 
-### Print UI5 / DOM Tree
+---
+
+### 10.6. Ver árbol de controles
 
 ```bash
 cargo run -- tree \
@@ -428,14 +589,16 @@ cargo run -- tree \
   --max-depth 6
 ```
 
-### List Automation Actions
+---
+
+### 10.7. Listar acciones
 
 ```bash
 cargo run -- actions \
   --input runs/fiori_snapshot.json
 ```
 
-Filter actions:
+Filtrar acciones:
 
 ```bash
 cargo run -- actions \
@@ -445,57 +608,176 @@ cargo run -- actions \
 
 ---
 
-## Recommended Professional Workflow
+### 10.8. Ejecutar workflow desde CLI
 
-1. Start the studio.
-2. Open the local web interface.
-3. Launch or connect to Chrome through CDP.
-4. Open the SAP Fiori application.
-5. Log in manually if needed.
-6. Navigate to the target Fiori screen.
-7. Capture a snapshot.
-8. Review controls, DOM structure and actions.
-9. Identify stable selectors.
-10. Generate a YAML workflow.
-11. Test the workflow in a non-production environment.
-12. Refine selectors and waits.
-13. Document the automation scenario.
+```bash
+cargo run -- run-workflow \
+  --workflow workflows/production_template.yaml \
+  --output-dir runs/test-productivo
+```
 
 ---
 
-## Automation Strategy
+## 11. Uso del Laboratorio de Workflows
 
-Recommended priority:
+Flujo recomendado desde la interfaz:
 
-1. Prefer official SAP APIs and OData services where possible.
-2. Use Fiori Inspector Studio to understand the UI.
-3. Use UI-level automation only when API-level automation is not available.
-4. Avoid coordinate-based automation.
-5. Prefer stable IDs, semantic labels and accessibility attributes.
-6. Capture evidence before and after critical steps.
-7. Store workflows in version control.
-8. Validate everything in test environments before production use.
+1. Abrir la aplicación.
+2. Analizar una página Fiori o un HTML de ejemplo.
+3. Ir a la pantalla **Workflow**.
+4. Revisar el YAML generado.
+5. Editar pasos, datos, selectores o validaciones.
+6. Pulsar **Validar**.
+7. Revisar errores y avisos.
+8. Seleccionar un paso si se quiere ejecutar parcialmente.
+9. Pulsar **Ejecutar hasta paso seleccionado**.
+10. Revisar resultado.
+11. Repetir hasta que el flujo sea estable.
+12. Ejecutar workflow completo.
+13. Revisar evidencias generadas.
 
 ---
 
-## Security Notes
+## 12. Acciones soportadas en workflows
 
-This tool must only be used in authorized SAP environments.
+Las acciones soportadas pueden incluir:
 
-Important rules:
+```text
+goto
+wait_ui5
+wait
+wait_for
+click
+input
+select
+press
+snapshot
+screenshot
+assert_visible
+assert_text
+```
 
-* Do not commit passwords.
-* Do not commit cookies.
-* Do not commit SAP tokens.
-* Do not commit `.env`.
-* Do not commit `config/local.toml` if it contains internal URLs or credentials.
-* Keep the local web server bound to `127.0.0.1`.
-* Do not expose the studio to the internet.
-* Use only with explicit authorization.
-* Respect corporate cybersecurity policies.
-* Do not use this tool to bypass access controls.
+Ejemplo:
 
-Recommended `.gitignore`:
+```yaml
+steps:
+  - action: goto
+    url: "https://fiori.example.com/sap/bc/ui2/flp"
+
+  - action: wait_ui5
+    timeout_secs: 90
+
+  - action: input
+    name: "Introducir material"
+    selector: "[id$='--materialInput']"
+    value: "${material}"
+
+  - action: click
+    name: "Buscar"
+    selector: "[id$='--searchButton']"
+
+  - action: assert_visible
+    name: "Validar resultados"
+    selector: "[id$='--resultTable']"
+
+  - action: screenshot
+    save_as: "resultado.png"
+```
+
+---
+
+## 13. Estrategia profesional de automatización
+
+Prioridad recomendada:
+
+1. **API / OData**, si existe y está autorizado.
+2. **Control SAPUI5**, si se puede identificar un `control_id`.
+3. **Selector semántico estable**, como `aria-label`, `title` o sufijo UI5.
+4. **Selector DOM específico**, solo si no hay alternativa.
+5. **Nunca coordenadas de pantalla como estrategia principal.**
+
+---
+
+## 14. Buenas prácticas con datos
+
+No se recomienda incrustar datos productivos directamente en pasos.
+
+No recomendado:
+
+```yaml
+- action: input
+  selector: "[id$='--materialInput']"
+  value: "4500001234"
+```
+
+Recomendado:
+
+```yaml
+variables:
+  material: "4500001234"
+
+steps:
+  - action: input
+    selector: "[id$='--materialInput']"
+    value: "${material}"
+```
+
+Esto permite:
+
+* Reutilizar workflows.
+* Cambiar datos sin tocar la lógica.
+* Preparar ejecución por lotes.
+* Separar datos y proceso.
+* Versionar workflows sin exponer información sensible.
+
+---
+
+## 15. Evidencias y control de calidad
+
+Una automatización profesional debe generar evidencias.
+
+Ejemplo:
+
+```yaml
+- action: snapshot
+  name: "Captura estado inicial"
+  save_as: "01_estado_inicial.json"
+
+- action: screenshot
+  name: "Captura visual final"
+  save_as: "99_resultado_final.png"
+```
+
+También se recomienda añadir validaciones:
+
+```yaml
+- action: assert_visible
+  name: "Validar tabla de resultados"
+  selector: "[id$='--resultTable']"
+  timeout_secs: 30
+```
+
+---
+
+## 16. Seguridad
+
+La herramienta debe utilizarse solo en entornos autorizados.
+
+Reglas importantes:
+
+* No subir contraseñas al repositorio.
+* No subir cookies.
+* No subir tokens.
+* No subir capturas con datos sensibles.
+* No subir `config/local.toml` si contiene URLs internas.
+* No subir carpetas `runs/` con evidencias productivas.
+* Mantener el servidor local en `127.0.0.1`.
+* No exponer el estudio a internet.
+* No saltarse controles de acceso.
+* Respetar las políticas corporativas de ciberseguridad.
+* Validar primero en desarrollo o calidad.
+
+`.gitignore` recomendado:
 
 ```gitignore
 /target/
@@ -514,47 +796,137 @@ Thumbs.db
 
 ---
 
-## Limitations
+## 17. Limitaciones
 
-Known limitations:
+La herramienta no sustituye a:
 
-* Static HTML mode cannot fully reconstruct SAPUI5 runtime state.
-* Some SAPUI5 controls may use generated IDs.
-* Highly customized Fiori applications may require additional heuristics.
-* CDP requires a locally accessible Chrome or Chromium instance.
-* Corporate SSO flows may require manual login.
-* Not all OData endpoints can be inferred from the UI alone.
-* This tool is not an official SAP product.
+* SAP Gateway.
+* Servicios OData oficiales.
+* SAP Business Application Studio.
+* SAP Fiori Tools.
+* Herramientas corporativas de testing.
+* Gobierno funcional SAP.
 
----
+Limitaciones conocidas:
 
-## Roadmap
-
-Possible future improvements:
-
-* Full workflow recorder.
-* Workflow replay.
-* OData metadata correlation.
-* Screenshot annotation.
-* HTML evidence reports.
-* PDF export.
-* Selector stability scoring.
-* Visual UI5 tree graph.
-* Playwright export.
-* Selenium export.
-* Rust automation code generation.
-* Batch analysis of multiple Fiori apps.
-* Integration with SAP Gateway/OData client.
-* Authentication profile management.
-* CI/CD workflow validation.
+* El HTML estático no conserva todo el runtime SAPUI5.
+* Algunas aplicaciones usan IDs generados.
+* Algunos controles personalizados requieren heurísticas específicas.
+* SSO corporativo puede requerir login manual.
+* CDP necesita Chrome o Chromium local.
+* La automatización UI debe validarse cuidadosamente antes de operar con datos reales.
+* No todas las reglas de negocio pueden inferirse desde la interfaz.
 
 ---
 
-## Author
+## 18. Casos de uso
+
+Casos de uso profesionales:
+
+* Analizar una aplicación Fiori antes de automatizarla.
+* Documentar pantallas Fiori.
+* Identificar controles UI5.
+* Generar workflows de prueba.
+* Crear evidencias de ejecución.
+* Validar selectores.
+* Preparar automatizaciones repetibles.
+* Formar equipos técnicos.
+* Comparar comportamiento entre entornos.
+* Construir flujos previos a una integración OData.
+
+---
+
+## 19. Roadmap
+
+Posibles mejoras futuras:
+
+* Grabador visual de workflows.
+* Ejecución paso a paso interactiva con pausa entre pasos.
+* Gestión de variables desde tabla visual.
+* Lectura de datos desde CSV, JSON o Excel.
+* Ejecución por lotes.
+* Reporte HTML de ejecución.
+* Exportación PDF de evidencias.
+* Comparación entre snapshots.
+* Correlación con metadatos OData.
+* Exportación a Playwright.
+* Exportación a Selenium.
+* Generación de código Rust.
+* Dashboard histórico de ejecuciones.
+* Perfiles por entorno: DEV, QA, PRE, PROD.
+* Control de aprobaciones para pasos sensibles.
+
+---
+
+## 20. Comandos de desarrollo
+
+Compilar:
+
+```bash
+cargo build
+```
+
+Ejecutar:
+
+```bash
+cargo run
+```
+
+Ejecutar tests:
+
+```bash
+cargo test
+```
+
+Formatear:
+
+```bash
+cargo fmt
+```
+
+Lint:
+
+```bash
+cargo clippy --all-targets -- -D warnings
+```
+
+Generar documentación:
+
+```bash
+cargo doc --open
+```
+
+---
+
+## 21. Publicación en GitHub
+
+Repositorio sugerido:
+
+```text
+https://github.com/ansonTGN/Fiori-Inspector
+```
+
+Comandos habituales:
+
+```bash
+git add .
+git commit -m "Add workflow editor, validation and step execution"
+git push
+```
+
+Si el repositorio todavía no existe:
+
+```bash
+gh repo create ansonTGN/Fiori-Inspector --private --source=. --remote=origin --push
+```
+
+---
+
+## 22. Autor
 
 **Angel A. Urbina**
 
-Industrial Engineer, Data Science and Cybersecurity professional, with experience in SAP, Rust, Python, industrial systems, automation and enterprise process analysis.
+Ingeniero Industrial, profesional de Data Science y Ciberseguridad, con experiencia en SAP, Rust, Python, automatización, sistemas industriales, análisis de procesos empresariales y desarrollo de herramientas técnicas para entornos corporativos.
 
 GitHub:
 
@@ -564,9 +936,9 @@ https://github.com/ansonTGN
 
 ---
 
-## License
+## 23. Licencia
 
-Suggested license:
+Licencia sugerida:
 
 ```text
 MIT License
@@ -575,12 +947,13 @@ Copyright (c) Angel A. Urbina
 
 ---
 
-## Disclaimer
+## 24. Aviso legal
 
-This is an independent technical tool for SAP Fiori / SAPUI5 inspection, documentation and automation support.
+Este proyecto es una herramienta independiente para análisis, documentación y soporte a la automatización de aplicaciones SAP Fiori / SAPUI5.
 
-It is not an official SAP product.
+No es un producto oficial de SAP.
 
-SAP, SAP Fiori, SAPUI5 and related names are trademarks or registered trademarks of SAP SE or its affiliates.
+SAP, SAP Fiori, SAPUI5 y otros nombres relacionados son marcas comerciales o marcas registradas de SAP SE o sus afiliadas.
 
-Use this software responsibly and only in environments where you have explicit permission.
+Utiliza esta herramienta de forma responsable y únicamente en sistemas donde tengas autorización expresa para analizar, probar o automatizar.
+

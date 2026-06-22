@@ -1,6 +1,8 @@
+[server]
+bind = "127.0.0.1:7820"
+
 [browser]
-# Esta versión NO usa ChromeDriver ni GeckoDriver.
-# Usa Chrome DevTools Protocol directamente contra Chrome/Chromium.
+# No usa ChromeDriver. Rust se conecta a Chrome/Chromium por Chrome DevTools Protocol.
 cdp_url = "http://127.0.0.1:9222"
 chrome_binary = "google-chrome"
 auto_launch = true
@@ -26,3 +28,11 @@ max_dom_nodes = 3000
 
 [output]
 pretty_json = true
+
+[automation]
+# Parámetros por defecto para workflows robustos de producción.
+default_timeout_secs = 30
+default_retry_attempts = 2
+retry_delay_ms = 750
+capture_snapshots_on_error = true
+redact_values_in_report = true

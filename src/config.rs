@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub fiori: FioriConfig,
     pub extraction: ExtractionConfig,
     pub output: OutputConfig,
+    pub automation: AutomationConfig,
 }
 
 /// Configuración del navegador vivo.
@@ -55,6 +56,20 @@ pub struct OutputConfig {
     pub pretty_json: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutomationConfig {
+    /// Timeout por defecto para pasos de automatización productiva.
+    pub default_timeout_secs: u64,
+    /// Reintentos por defecto para acciones frágiles de UI.
+    pub default_retry_attempts: u32,
+    /// Pausa entre reintentos.
+    pub retry_delay_ms: u64,
+    /// Captura snapshot y screenshot si un paso falla.
+    pub capture_snapshots_on_error: bool,
+    /// Si true, el informe no debe incluir valores sensibles literales cuando se amplíe el motor de reporting.
+    pub redact_values_in_report: bool,
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -62,6 +77,7 @@ impl Default for AppConfig {
             fiori: FioriConfig::default(),
             extraction: ExtractionConfig::default(),
             output: OutputConfig::default(),
+            automation: AutomationConfig::default(),
         }
     }
 }
@@ -108,6 +124,18 @@ impl Default for ExtractionConfig {
 impl Default for OutputConfig {
     fn default() -> Self {
         Self { pretty_json: true }
+    }
+}
+
+impl Default for AutomationConfig {
+    fn default() -> Self {
+        Self {
+            default_timeout_secs: 30,
+            default_retry_attempts: 2,
+            retry_delay_ms: 750,
+            capture_snapshots_on_error: true,
+            redact_values_in_report: true,
+        }
     }
 }
 

@@ -1,23 +1,23 @@
-# Rust
+# Rust build output
 /target/
 
-# Local config / secrets
+# Local configuration / secrets
 .env
 .env.*
 config/local.toml
 
-# Generated runs / outputs
+# Execution outputs / evidences
 runs/
 *.log
 *.tmp
 
-# Local browser profile for CDP
+# Local Chrome / Chromium CDP profile
 .browser-profile-cdp/
 
-# Editors
+# Editor folders
 .vscode/
 .idea/
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
