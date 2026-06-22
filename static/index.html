@@ -76,15 +76,15 @@
                 <p class="eyebrow">Modo recomendado</p>
                 <h3>Capturar sesión Fiori viva</h3>
               </div>
-              <span class="pill">WebDriver</span>
+              <span class="pill">CDP</span>
             </div>
-            <p class="muted">Usa ChromeDriver/GeckoDriver. Ideal para extraer árbol lógico UI5, modelos, bindings y URLs reales observadas por la app.</p>
+            <p class="muted">Usa Chrome/Chromium con CDP. Ideal para extraer árbol lógico UI5, modelos, bindings y URLs reales observadas por la app.</p>
             <label class="field">
               <span>URL Fiori</span>
               <input id="browserUrl" placeholder="https://fiori.empresa.com/sap/bc/ui2/flp#..." />
             </label>
             <button class="primary wide" id="captureBrowserBtn">Capturar sesión viva</button>
-            <div class="hint">Arranca antes: <code>chromedriver --port=9515</code>. Si hay SSO, configura <code>manual_login_wait_secs</code>.</div>
+            <div class="hint">No usa ChromeDriver. Por defecto intentará abrir Chrome automáticamente con CDP. Si prefieres arrancarlo tú: <code>google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp</code>.</div>
           </article>
 
           <article class="card glass">
@@ -221,9 +221,9 @@
           </article>
           <article class="help-card glass">
             <span class="help-icon">2</span>
-            <h4>Prepara ChromeDriver</h4>
-            <p>Solo es necesario para analizar una sesión Fiori viva. Déjalo abierto en otra terminal.</p>
-            <div class="command-line"><code>chromedriver --port=9515</code><button class="mini copy-command" data-copy="chromedriver --port=9515">Copiar</button></div>
+            <h4>Prepara Chrome DevTools Protocol</h4>
+            <p>Solo es necesario para analizar una sesión Fiori viva. Normalmente la app lo lanza sola; este comando sirve si quieres abrirlo manualmente.</p>
+            <div class="command-line"><code>google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp</code><button class="mini copy-command" data-copy="google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp">Copiar</button></div>
           </article>
           <article class="help-card glass">
             <span class="help-icon">3</span>
@@ -273,7 +273,7 @@
               </div>
             </div>
             <div class="callout info">
-              <strong>Regla práctica:</strong> si puedes abrir la app Fiori real, usa WebDriver. Si solo tienes un fichero HTML, usa análisis offline.
+              <strong>Regla práctica:</strong> si puedes abrir la app Fiori real, usa CDP. Si solo tienes un fichero HTML, usa análisis offline.
             </div>
           </article>
         </div>
@@ -287,7 +287,7 @@
           </div>
           <div class="timeline">
             <div class="timeline-step"><span>01</span><div><strong>Arranca el backend Rust</strong><p>Ejecuta <code>cargo run -- --config config/local.toml serve</code> y abre <code>http://127.0.0.1:7820</code>.</p></div></div>
-            <div class="timeline-step"><span>02</span><div><strong>Abre ChromeDriver</strong><p>En otra terminal ejecuta <code>chromedriver --port=9515</code>. Si usas Firefox, configura GeckoDriver.</p></div></div>
+            <div class="timeline-step"><span>02</span><div><strong>Abre Chrome DevTools Protocol</strong><p>Normalmente no tienes que hacer nada: la app intenta lanzar Chrome sola. Si falla, ejecuta manualmente <code>google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp</code>.</p></div></div>
             <div class="timeline-step"><span>03</span><div><strong>Captura la pantalla Fiori</strong><p>Pega la URL Fiori. Si hay login corporativo, entra manualmente y espera a que la página quede cargada.</p></div></div>
             <div class="timeline-step"><span>04</span><div><strong>Lee el resumen</strong><p>Revisa calidad, número de controles, acciones candidatas, endpoints OData y riesgos.</p></div></div>
             <div class="timeline-step"><span>05</span><div><strong>Elige acciones fiables</strong><p>Prioriza selectores basados en IDs estables, textos claros y controles visibles. Evita coordenadas de pantalla.</p></div></div>
@@ -340,8 +340,8 @@
           </div>
           <div class="faq">
             <details open>
-              <summary>No captura nada o dice que WebDriver no está disponible</summary>
-              <p>Abre otra terminal y ejecuta <code>chromedriver --port=9515</code>. Luego comprueba <code>curl http://127.0.0.1:9515/status</code>.</p>
+              <summary>No captura nada o dice que CDP no está disponible</summary>
+              <p>Abre otra terminal y ejecuta <code>google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp</code>. Luego comprueba <code>curl http://127.0.0.1:9222/json/version</code>.</p>
             </details>
             <details>
               <summary>La página queda en login corporativo o SSO</summary>
@@ -373,7 +373,7 @@
             <div class="command-line"><code>cargo build</code><button class="mini copy-command" data-copy="cargo build">Copiar</button></div>
             <div class="command-line"><code>cargo run -- serve</code><button class="mini copy-command" data-copy="cargo run -- serve">Copiar</button></div>
             <div class="command-line"><code>cargo run -- --config config/local.toml serve</code><button class="mini copy-command" data-copy="cargo run -- --config config/local.toml serve">Copiar</button></div>
-            <div class="command-line"><code>chromedriver --port=9515</code><button class="mini copy-command" data-copy="chromedriver --port=9515">Copiar</button></div>
+            <div class="command-line"><code>google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp</code><button class="mini copy-command" data-copy="google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp">Copiar</button></div>
             <div class="command-line"><code>cargo run -- analyze-html --input examples/static_fiori_fragment.html --output runs/static_snapshot.json</code><button class="mini copy-command" data-copy="cargo run -- analyze-html --input examples/static_fiori_fragment.html --output runs/static_snapshot.json">Copiar</button></div>
             <div class="command-line"><code>cargo run -- summary --input runs/static_snapshot.json</code><button class="mini copy-command" data-copy="cargo run -- summary --input runs/static_snapshot.json">Copiar</button></div>
           </div>

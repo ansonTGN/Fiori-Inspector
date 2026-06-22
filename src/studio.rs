@@ -1,6 +1,8 @@
 use crate::browser;
 use crate::config::AppConfig;
-use crate::models::{ActionHint, BindingInfo, InteractorKind, ODataEndpoint, PageSnapshot, Ui5Control};
+use crate::models::{
+    ActionHint, BindingInfo, InteractorKind, ODataEndpoint, PageSnapshot, Ui5Control,
+};
 use crate::static_html;
 use anyhow::{Context, Result};
 use axum::extract::{Path as AxumPath, State};
@@ -127,17 +129,22 @@ pub async fn serve(cfg: AppConfig, bind: &str, static_dir: PathBuf) -> Result<()
         .route("/api/snapshots/:id", get(get_snapshot))
         .route("/api/snapshots/:id/report", get(get_report))
         .route("/api/snapshots/:id/workflow", get(generate_workflow))
-        .nest_service("/", ServeDir::new(static_dir).append_index_html_on_directories(true))
+        .nest_service(
+            "/",
+            ServeDir::new(static_dir).append_index_html_on_directories(true),
+        )
         .layer(CorsLayer::permissive())
         .with_state(state);
 
-    let addr: SocketAddr = bind.parse().with_context(|| format!("Bind address no válido: {bind}"))?;
+    let addr: SocketAddr = bind
+        .parse()
+        .with_context(|| format!("Bind address no válido: {bind}"))?;
     let listener = TcpListener::bind(addr).await?;
     info!("Fiori Inspector Studio escuchando en http://{addr}");
     println!("\nFiori Inspector Studio");
     println!("──────────────────────");
     println!("Abre: http://{addr}");
-    println!("Usa ChromeDriver si quieres capturar una sesión Fiori viva.\n");
+    println!("No se usa ChromeDriver: la captura viva usa Chrome DevTools Protocol. Si CDP no está activo, se intentará lanzar Chrome automáticamente.\n");
     axum::serve(listener, app).await?;
     Ok(())
 }
@@ -170,8 +177,15 @@ async fn analyze_static_html(
         state.cfg.extraction.max_text_len,
         state.cfg.extraction.max_dom_nodes,
     );
-    let record = make_record(snapshot, req.name.or_else(|| Some("HTML estático".to_string())));
-    state.snapshots.write().await.insert(record.id.clone(), record.clone());
+    let record = make_record(
+        snapshot,
+        req.name.or_else(|| Some("HTML estático".to_string())),
+    );
+    state
+        .snapshots
+        .write()
+        .await
+        .insert(record.id.clone(), record.clone());
     Ok(Json(record))
 }
 
@@ -180,13 +194,19 @@ async fn snapshot_browser(
     Json(req): Json<BrowserSnapshotRequest>,
 ) -> std::result::Result<Json<SnapshotRecord>, ApiError> {
     if !(req.url.starts_with("http://") || req.url.starts_with("https://")) {
-        return Err(ApiError::bad_request("La URL debe empezar por http:// o https://."));
+        return Err(ApiError::bad_request(
+            "La URL debe empezar por http:// o https://.",
+        ));
     }
     let snapshot = browser::snapshot_browser(&state.cfg, &req.url, None)
         .await
         .map_err(ApiError::internal)?;
     let record = make_record(snapshot, req.name.or_else(|| Some(req.url.clone())));
-    state.snapshots.write().await.insert(record.id.clone(), record.clone());
+    state
+        .snapshots
+        .write()
+        .await
+        .insert(record.id.clone(), record.clone());
     Ok(Json(record))
 }
 
@@ -195,7 +215,10 @@ async fn get_snapshot(
     AxumPath(id): AxumPath<String>,
 ) -> std::result::Result<Json<SnapshotRecord>, ApiError> {
     let map = state.snapshots.read().await;
-    let record = map.get(&id).cloned().ok_or_else(|| ApiError::not_found("Snapshot no encontrado."))?;
+    let record = map
+        .get(&id)
+        .cloned()
+        .ok_or_else(|| ApiError::not_found("Snapshot no encontrado."))?;
     Ok(Json(record))
 }
 
@@ -204,7 +227,10 @@ async fn get_report(
     AxumPath(id): AxumPath<String>,
 ) -> std::result::Result<Json<StudioReport>, ApiError> {
     let map = state.snapshots.read().await;
-    let record = map.get(&id).cloned().ok_or_else(|| ApiError::not_found("Snapshot no encontrado."))?;
+    let record = map
+        .get(&id)
+        .cloned()
+        .ok_or_else(|| ApiError::not_found("Snapshot no encontrado."))?;
     Ok(Json(record.report))
 }
 
@@ -213,15 +239,25 @@ async fn generate_workflow(
     AxumPath(id): AxumPath<String>,
 ) -> std::result::Result<Json<WorkflowExport>, ApiError> {
     let map = state.snapshots.read().await;
-    let record = map.get(&id).cloned().ok_or_else(|| ApiError::not_found("Snapshot no encontrado."))?;
-    Ok(Json(WorkflowExport { yaml: workflow_from_snapshot(&record.snapshot) }))
+    let record = map
+        .get(&id)
+        .cloned()
+        .ok_or_else(|| ApiError::not_found("Snapshot no encontrado."))?;
+    Ok(Json(WorkflowExport {
+        yaml: workflow_from_snapshot(&record.snapshot),
+    }))
 }
 
 fn make_record(snapshot: PageSnapshot, name: Option<String>) -> SnapshotRecord {
     let report = build_report(&snapshot);
     SnapshotRecord {
         id: Uuid::new_v4().to_string(),
-        name: name.unwrap_or_else(|| snapshot.title.clone().unwrap_or_else(|| "Snapshot Fiori".to_string())),
+        name: name.unwrap_or_else(|| {
+            snapshot
+                .title
+                .clone()
+                .unwrap_or_else(|| "Snapshot Fiori".to_string())
+        }),
         created_at: Utc::now(),
         snapshot,
         report,
@@ -253,8 +289,18 @@ pub fn build_report(snapshot: &PageSnapshot) -> StudioReport {
         .cloned()
         .collect::<Vec<_>>();
 
-    let high_value_controls = snapshot.controls.iter().filter_map(control_card).take(120).collect::<Vec<_>>();
-    let binding_inventory = snapshot.controls.iter().filter_map(binding_card).take(100).collect::<Vec<_>>();
+    let high_value_controls = snapshot
+        .controls
+        .iter()
+        .filter_map(control_card)
+        .take(120)
+        .collect::<Vec<_>>();
+    let binding_inventory = snapshot
+        .controls
+        .iter()
+        .filter_map(binding_card)
+        .take(100)
+        .collect::<Vec<_>>();
     let automation_risks = risks(snapshot);
     let detected_patterns = detected_patterns(snapshot);
     let recommendations = recommendations(snapshot, &automation_risks);
@@ -297,8 +343,17 @@ fn control_card(c: &Ui5Control) -> Option<ControlCard> {
     }
     Some(ControlCard {
         id: c.id.clone(),
-        label: c.text.clone().or_else(|| c.title.clone()).or_else(|| c.value.clone()).unwrap_or_default(),
-        control_type: c.control_type.clone().or_else(|| c.short_type.clone()).unwrap_or_else(|| "unknown".to_string()),
+        label: c
+            .text
+            .clone()
+            .or_else(|| c.title.clone())
+            .or_else(|| c.value.clone())
+            .unwrap_or_default(),
+        control_type: c
+            .control_type
+            .clone()
+            .or_else(|| c.short_type.clone())
+            .unwrap_or_else(|| "unknown".to_string()),
         selector: c.selector_candidates.first().cloned(),
         visible: c.visible,
         interactor: c.interactor.clone(),
@@ -313,8 +368,17 @@ fn binding_card(c: &Ui5Control) -> Option<BindingCard> {
     }
     Some(BindingCard {
         control_id: c.id.clone(),
-        control_label: c.text.clone().or_else(|| c.title.clone()).or_else(|| c.value.clone()).unwrap_or_default(),
-        control_type: c.control_type.clone().or_else(|| c.short_type.clone()).unwrap_or_else(|| "unknown".to_string()),
+        control_label: c
+            .text
+            .clone()
+            .or_else(|| c.title.clone())
+            .or_else(|| c.value.clone())
+            .unwrap_or_default(),
+        control_type: c
+            .control_type
+            .clone()
+            .or_else(|| c.short_type.clone())
+            .unwrap_or_else(|| "unknown".to_string()),
         bindings: c.bindings.clone(),
         context_path: c.binding_context_path.clone(),
     })
@@ -322,8 +386,15 @@ fn binding_card(c: &Ui5Control) -> Option<BindingCard> {
 
 fn detected_patterns(snapshot: &PageSnapshot) -> Vec<String> {
     let mut patterns = Vec::new();
-    let types = snapshot.controls.iter().filter_map(|c| c.control_type.as_deref()).collect::<BTreeSet<_>>();
-    if types.iter().any(|t| t.contains("Table") || t.contains("List")) {
+    let types = snapshot
+        .controls
+        .iter()
+        .filter_map(|c| c.control_type.as_deref())
+        .collect::<BTreeSet<_>>();
+    if types
+        .iter()
+        .any(|t| t.contains("Table") || t.contains("List"))
+    {
         patterns.push("Pantalla con tablas/listas: conviene automatizar por contexto de fila y binding, no por índice visual.".to_string());
     }
     if types.iter().any(|t| t.contains("Smart")) {
@@ -333,9 +404,13 @@ fn detected_patterns(snapshot: &PageSnapshot) -> Vec<String> {
         patterns.push("Se han detectado endpoints OData; muchas acciones UI pueden transformarse en llamadas API más estables.".to_string());
     }
     if snapshot.ui5.detected {
-        patterns.push("SAPUI5 detectado: priorizar árbol lógico UI5 frente a HTML plano.".to_string());
+        patterns
+            .push("SAPUI5 detectado: priorizar árbol lógico UI5 frente a HTML plano.".to_string());
     } else {
-        patterns.push("No se ha confirmado SAPUI5; el análisis puede estar basado solo en DOM estático.".to_string());
+        patterns.push(
+            "No se ha confirmado SAPUI5; el análisis puede estar basado solo en DOM estático."
+                .to_string(),
+        );
     }
     patterns
 }
@@ -347,16 +422,25 @@ fn risks(snapshot: &PageSnapshot) -> Vec<RiskCard> {
             severity: "alta".to_string(),
             title: "UI5 no confirmado".to_string(),
             detail: "El análisis puede no incluir árbol de controles, bindings ni modelos vivos.".to_string(),
-            remediation: "Ejecutar captura con WebDriver en una sesión Fiori real y esperar a sap.ui.getCore().isInitialized().".to_string(),
+            remediation: "Ejecutar captura con CDP en una sesión Fiori real y esperar a sap.ui.getCore().isInitialized().".to_string(),
         });
     }
-    let dynamic_ids = snapshot.controls.iter().filter(|c| c.id.contains("__") || c.id.len() > 90).count();
+    let dynamic_ids = snapshot
+        .controls
+        .iter()
+        .filter(|c| c.id.contains("__") || c.id.len() > 90)
+        .count();
     if dynamic_ids > 0 {
         risks.push(RiskCard {
             severity: "media".to_string(),
             title: "IDs potencialmente dinámicos".to_string(),
-            detail: format!("{} controles parecen tener IDs generados o excesivamente largos.", dynamic_ids),
-            remediation: "Preferir stable IDs, sufijos semánticos, aria-labels, bindings o llamadas OData.".to_string(),
+            detail: format!(
+                "{} controles parecen tener IDs generados o excesivamente largos.",
+                dynamic_ids
+            ),
+            remediation:
+                "Preferir stable IDs, sufijos semánticos, aria-labels, bindings o llamadas OData."
+                    .to_string(),
         });
     }
     if snapshot.metrics.actionable_control_count == 0 {
@@ -397,18 +481,35 @@ fn recommendations(snapshot: &PageSnapshot, risks: &[RiskCard]) -> Vec<String> {
         out.push("Repetir la captura con sesión viva para obtener bindings; el HTML estático raramente contiene todo el modelo UI5.".to_string());
     }
     if risks.iter().any(|r| r.severity == "alta") {
-        out.push("No pasar a automatización productiva hasta resolver los riesgos de severidad alta.".to_string());
+        out.push(
+            "No pasar a automatización productiva hasta resolver los riesgos de severidad alta."
+                .to_string(),
+        );
     }
     out
 }
 
 fn quality_score(snapshot: &PageSnapshot, risks: &[RiskCard]) -> u8 {
     let mut score: i32 = 50;
-    if snapshot.ui5.detected { score += 15; }
-    if snapshot.metrics.control_count > 0 { score += 10; }
-    if snapshot.metrics.actionable_control_count > 0 { score += 10; }
-    if snapshot.metrics.endpoint_count > 0 { score += 8; }
-    if snapshot.controls.iter().any(|c| !c.bindings.is_empty() || c.binding_context_path.is_some()) { score += 7; }
+    if snapshot.ui5.detected {
+        score += 15;
+    }
+    if snapshot.metrics.control_count > 0 {
+        score += 10;
+    }
+    if snapshot.metrics.actionable_control_count > 0 {
+        score += 10;
+    }
+    if snapshot.metrics.endpoint_count > 0 {
+        score += 8;
+    }
+    if snapshot
+        .controls
+        .iter()
+        .any(|c| !c.bindings.is_empty() || c.binding_context_path.is_some())
+    {
+        score += 7;
+    }
     for r in risks {
         match r.severity.as_str() {
             "alta" => score -= 20,
@@ -434,8 +535,14 @@ fn workflow_from_snapshot(snapshot: &PageSnapshot) -> String {
             InteractorKind::Input | InteractorKind::ComboBox => {
                 out.push_str(&format!("  - action: input\n    selector: {:?}\n    value: \"<valor>\"\n    clear: true\n", action.selector));
             }
-            InteractorKind::Button | InteractorKind::Link | InteractorKind::Tab | InteractorKind::MenuItem => {
-                out.push_str(&format!("  - action: click\n    selector: {:?}\n", action.selector));
+            InteractorKind::Button
+            | InteractorKind::Link
+            | InteractorKind::Tab
+            | InteractorKind::MenuItem => {
+                out.push_str(&format!(
+                    "  - action: click\n    selector: {:?}\n",
+                    action.selector
+                ));
             }
             _ => {}
         }
@@ -452,15 +559,24 @@ struct ApiError {
 
 impl ApiError {
     fn bad_request(message: impl Into<String>) -> Self {
-        Self { status: StatusCode::BAD_REQUEST, message: message.into() }
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            message: message.into(),
+        }
     }
 
     fn not_found(message: impl Into<String>) -> Self {
-        Self { status: StatusCode::NOT_FOUND, message: message.into() }
+        Self {
+            status: StatusCode::NOT_FOUND,
+            message: message.into(),
+        }
     }
 
     fn internal(error: anyhow::Error) -> Self {
-        Self { status: StatusCode::INTERNAL_SERVER_ERROR, message: error.to_string() }
+        Self {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            message: error.to_string(),
+        }
     }
 }
 

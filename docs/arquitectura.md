@@ -1,18 +1,20 @@
-# Arquitectura de fiori-dom-agent-rs
+# Arquitectura de Fiori Inspector Studio sin ChromeDriver
 
 ## Objetivo
 
-Construir una herramienta Rust que permita inspeccionar e interactuar con aplicaciones SAP Fiori de forma análoga a SAP GUI Scripting, pero respetando la arquitectura web de SAPUI5.
+Construir una herramienta Rust que permita inspeccionar aplicaciones SAP Fiori de forma análoga a SAP GUI Scripting, pero adaptada a la arquitectura web dinámica de SAPUI5 y sin depender de ChromeDriver.
 
 ## Capas
 
 ```text
 ┌──────────────────────────────────────────────┐
-│ Workflow YAML / CLI                          │
+│ Workflow YAML / CLI / Studio Web             │
 ├──────────────────────────────────────────────┤
 │ Orquestador Rust                             │
 ├──────────────────────────────────────────────┤
-│ WebDriver: Chrome / Firefox                  │
+│ Controlador CDP                              │
+├──────────────────────────────────────────────┤
+│ Chrome / Chromium con --remote-debugging     │
 ├──────────────────────────────────────────────┤
 │ Extractor JS inyectado en navegador          │
 ├──────────────────────────────────────────────┤
@@ -26,37 +28,26 @@ Construir una herramienta Rust que permita inspeccionar e interactuar con aplica
 
 ## Estrategia de extracción
 
-1. Esperar a que `sap.ui.getCore().isInitialized()` sea verdadero.
-2. Leer controles desde `sap.ui.core.Element.registry.all()` cuando esté disponible.
-3. Usar fallback hacia estructuras del core si la versión UI5 es antigua.
-4. Para cada control:
-   - ID lógico.
-   - Tipo UI5.
-   - Estado visible/habilitado/editable.
-   - Texto/valor/título/tooltip.
-   - DOM asociado.
-   - Aggregations y relación padre/hijo.
-   - Bindings de propiedades.
-   - Modelos y posibles `service_url`.
-   - Selectores candidatos.
-   - Tipo de interacción probable.
-5. Leer recursos de red con `performance.getEntriesByType('resource')` para localizar URLs OData.
+1. Lanzar o conectar con Chrome/Chromium vía CDP en `http://127.0.0.1:9222`.
+2. Crear una pestaña nueva mediante `Target.createTarget`.
+3. Navegar a la URL Fiori mediante `Page.navigate`.
+4. Esperar `document.readyState` y, opcionalmente, `sap.ui.getCore().isInitialized()`.
+5. Ejecutar `ui5_probe.js` con `Runtime.evaluate`.
+6. Extraer controles UI5, DOM, bindings, modelos y endpoints.
+7. Convertir el JSON devuelto en `PageSnapshot` Rust.
+8. Presentar el resultado en Studio, CLI o workflow YAML.
 
-## Filosofía de automatización
+## Ventajas frente a ChromeDriver
 
-SAP Fiori no debe automatizarse como una web cualquiera. La capa DOM es una representación final generada por SAPUI5. Para flujos robustos hay que combinar:
+- No requiere instalar ni mantener `chromedriver`.
+- Evita incompatibilidades frecuentes entre navegador y driver.
+- Reduce dependencias operativas.
+- Se conecta a Chrome/Chromium usando una interfaz nativa del navegador.
+- Permite análisis vivo de SAPUI5 sin tratar la página solo como HTML estático.
 
-- árbol lógico UI5,
-- atributos ARIA,
-- IDs estables,
-- bindings,
-- servicios OData,
-- evidencia de ejecución.
+## Limitaciones
 
-## Seguridad
-
-- No se guardan credenciales.
-- No se interceptan contraseñas.
-- No se saltan controles de autorización.
-- Se recomienda ejecutar primero en entornos DEV/QAS.
-- Toda acción productiva debería tener registro de auditoría.
+- Requiere que Chrome/Chromium permita depuración remota local.
+- Algunas políticas corporativas pueden restringir CDP.
+- La interacción DOM directa puede no ser suficiente para todos los controles SAPUI5 complejos.
+- Para operaciones críticas se recomienda preferir OData/API cuando sea posible.

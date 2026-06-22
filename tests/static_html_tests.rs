@@ -1,4 +1,4 @@
-use fiori_dom_agent::static_html;
+use fiori_inspector_studio::static_html;
 
 #[test]
 fn static_analyzer_detects_sap_like_controls() {

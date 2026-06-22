@@ -13,10 +13,10 @@ Backend Rust Axum
         │
         ├── Static HTML Analyzer
         │
-        ├── WebDriver Controller
+        ├── CDP Controller
         │       │
         │       ▼
-        │   Chrome/Firefox controlado
+        │   Chrome/Chromium con remote debugging
         │       │
         │       ▼
         │   SAP Fiori / SAPUI5 vivo
@@ -24,65 +24,26 @@ Backend Rust Axum
         └── Report Builder
 ```
 
-## Flujo de sesión viva
+## Flujo de sesión viva sin ChromeDriver
 
 1. El usuario abre el Studio.
 2. Introduce una URL Fiori.
-3. El backend Rust conecta con ChromeDriver.
-4. Se abre Fiori en un navegador controlado.
-5. El backend espera a que SAPUI5 esté inicializado.
-6. Se inyecta `ui5_probe.js`.
-7. El probe extrae controles, DOM, bindings, modelos y endpoints.
-8. Rust convierte el resultado en `PageSnapshot`.
-9. Axum devuelve el snapshot al frontend.
-10. La interfaz renderiza resumen, árbol, acciones, bindings, riesgos y workflow.
+3. El backend Rust comprueba CDP en `http://127.0.0.1:9222`.
+4. Si CDP no está activo y `auto_launch = true`, lanza Chrome/Chromium automáticamente.
+5. El backend crea una pestaña CDP y navega a Fiori.
+6. El usuario completa el login/SSO si es necesario.
+7. El backend espera a SAPUI5.
+8. Se inyecta `ui5_probe.js` mediante `Runtime.evaluate`.
+9. El probe extrae controles, DOM, bindings, modelos y endpoints.
+10. Rust convierte el resultado en `PageSnapshot`.
+11. Axum devuelve el snapshot al frontend.
+12. La interfaz renderiza resumen, árbol, acciones, bindings, riesgos y workflow.
 
-## Capas de extracción
+## Modos de análisis
 
-### DOM visible
+- **CDP vivo**: máxima calidad, porque ve SAPUI5 ejecutándose.
+- **HTML estático**: útil para documentación, formación o evidencias offline.
 
-- Etiquetas HTML.
-- IDs.
-- Clases.
-- Roles ARIA.
-- Textos visibles.
-- Selectores CSS candidatos.
+## Seguridad
 
-### UI5 lógico
-
-- `sap.ui.getCore()`.
-- Controles registrados.
-- Tipos de control.
-- Parent/children.
-- Agregaciones.
-- Bindings.
-- Modelos.
-- Context paths.
-
-### Integración
-
-- Performance entries.
-- Service URLs de modelos.
-- Rutas OData detectadas en HTML.
-
-## Criterios de calidad
-
-La puntuación de calidad se calcula considerando:
-
-- UI5 detectado.
-- Cantidad de controles.
-- Acciones candidatas.
-- Endpoints OData.
-- Bindings/context paths.
-- Riesgos de IDs dinámicos.
-- Captura incompleta o HTML estático.
-
-## Estrategia de automatización recomendada
-
-1. Usar Studio para descubrir estructura.
-2. Identificar acciones robustas.
-3. Preferir llamadas OData cuando el endpoint sea claro.
-4. Usar selectores UI solo cuando la API no cubra el caso.
-5. Versionar workflows YAML.
-6. Ejecutar snapshots antes y después de cada acción importante.
-7. Añadir verificaciones de negocio, no solo verificaciones visuales.
+El servidor local debe permanecer en `127.0.0.1`. El puerto CDP también debe limitarse al equipo local. No debe exponerse CDP a una red corporativa o pública.

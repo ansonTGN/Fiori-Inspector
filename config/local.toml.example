@@ -1,11 +1,14 @@
 [browser]
-webdriver_url = "http://localhost:9515"
-browser = "chrome"
+# Esta versión NO usa ChromeDriver ni GeckoDriver.
+# Usa Chrome DevTools Protocol directamente contra Chrome/Chromium.
+cdp_url = "http://127.0.0.1:9222"
+chrome_binary = "google-chrome"
+auto_launch = true
 headless = false
 accept_insecure_certs = true
 window_width = 1600
 window_height = 1000
-user_data_dir = "./.browser-profile"
+user_data_dir = "./.browser-profile-cdp"
 
 [fiori]
 wait_for_ui5 = true

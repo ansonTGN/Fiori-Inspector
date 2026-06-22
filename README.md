@@ -1,187 +1,174 @@
 # Fiori Inspector Studio
 
-**Interactive Rust application for analyzing SAP Fiori / SAPUI5 applications and preparing robust automation workflows.**
+**Interactive Rust application for analyzing SAP Fiori / SAPUI5 applications without ChromeDriver.**
 
 Author: **Angel A. Urbina**
 
 ---
 
-## 1. Overview
+## Overview
 
-**Fiori Inspector Studio** is a professional Rust-based tool designed to inspect, understand and prepare automation strategies for **SAP Fiori** and **SAPUI5** applications.
+**Fiori Inspector Studio** is a professional Rust-based tool designed to analyze SAP Fiori and SAPUI5 web applications, extract their technical structure and help prepare robust automation workflows.
 
-The main objective of this project is to provide an intuitive, clear and visually refined analysis environment that helps technical users discover the internal structure of a Fiori application in a way that is conceptually similar to how SAP GUI Scripting allows interaction with classic SAP GUI transactions.
+The project is focused on understanding Fiori screens in a way conceptually similar to how SAP GUI Scripting helps understand classic SAP GUI transactions, but adapted to the modern web architecture of SAP Fiori.
 
-Instead of relying only on fragile visual clicks or screen coordinates, this tool analyzes the application through several complementary layers:
+The tool analyzes:
 
-* The rendered HTML DOM.
-* The logical SAPUI5 control tree.
-* UI5 control identifiers.
+* Rendered HTML DOM.
+* SAPUI5 logical control structure.
+* Buttons, inputs, links, tables, tabs and panels.
+* UI5 identifiers.
 * Candidate CSS selectors.
-* Visible user interface actions.
-* Inputs, buttons, links, tables and panels.
-* Bindings and model paths when available.
-* OData endpoints and technical traces when detectable.
-* YAML workflows for reproducible automation.
+* Bindings and model paths when detectable.
+* Possible OData traces.
+* Automation actions.
+* YAML workflows.
 
-The application includes a local web interface with an Apple-inspired design focused on clarity, simplicity and usability.
-
----
-
-## 2. Purpose
-
-SAP Fiori applications are modern web applications built with SAPUI5. They are dynamic, component-based and frequently backed by OData services.
-
-Traditional automation approaches based only on mouse coordinates or plain HTML scraping are often unreliable because SAPUI5 dynamically generates controls, IDs, tables, fragments and views.
-
-This project aims to solve that problem by creating a structured analysis layer capable of helping the user answer questions such as:
-
-* What controls exist on this Fiori screen?
-* Which buttons, fields and tables can be automated?
-* Which selectors are more stable?
-* Which UI5 controls correspond to visible HTML elements?
-* Which fields are bound to models or OData paths?
-* What actions can be converted into repeatable automation workflows?
-* How can I document and understand a Fiori application before automating it?
+This version does **not** use ChromeDriver or GeckoDriver. Live analysis is based on **Chrome DevTools Protocol — CDP**.
 
 ---
 
-## 3. Main Features
+## Why This Project Exists
 
-### Interactive Studio
+SAP Fiori applications are dynamic web applications built on SAPUI5. They are not simple static HTML pages.
 
-The application includes a local web studio accessible from the browser.
+A Fiori screen may include:
 
-Default URL:
+* XML views.
+* Controllers.
+* Fragments.
+* Dynamically generated controls.
+* OData bindings.
+* Smart controls.
+* Tables.
+* Value helps.
+* Launchpad navigation.
+* Runtime-generated IDs.
+
+Because of this, automating Fiori only with mouse coordinates or simple HTML scraping is fragile.
+
+**Fiori Inspector Studio** helps inspect the application structure before automation, making it easier to select stable technical references and design maintainable workflows.
+
+---
+
+## Main Features
+
+### Apple-like Local Studio
+
+The application includes a local browser interface with a clean, intuitive and Apple-inspired visual design.
+
+Default local URL:
 
 ```text
 http://127.0.0.1:7820
 ```
 
-The interface provides:
+The interface includes:
 
-* A clean Apple-like visual design.
 * Main dashboard.
-* Visual help section.
-* Fiori live session capture.
+* Beginner-friendly help.
+* Live Fiori analysis.
 * Static HTML analysis.
-* UI5 control tree viewer.
-* Action candidates panel.
+* Control tree view.
+* Action candidates.
 * Selector recommendations.
-* Bindings and model information.
-* OData endpoint discovery.
-* Workflow generation support.
-* Beginner-friendly help integrated into the homepage.
+* Workflow generation.
+* Technical analysis panels.
 
 ---
 
-### Live Fiori / SAPUI5 Inspection
+### No ChromeDriver Required
 
-Using WebDriver, the tool can open and inspect a live SAP Fiori application.
+This version removes the dependency on ChromeDriver.
 
-It can capture:
+Previous architecture:
 
-* DOM structure.
-* UI5 controls.
-* Control IDs.
-* Control types.
-* Texts and labels.
-* Parent-child relationships.
-* Visibility state.
-* Tables and rows.
-* Inputs and buttons.
+```text
+Rust → ChromeDriver → Chrome → SAP Fiori
+```
+
+Current architecture:
+
+```text
+Rust → Chrome DevTools Protocol → Chrome / Chromium → SAP Fiori
+```
+
+Chrome or Chromium is launched with a local remote debugging port, normally:
+
+```text
+http://127.0.0.1:9222
+```
+
+---
+
+### Live SAP Fiori Analysis
+
+The tool can connect to a running Chrome or Chromium session and analyze a real Fiori application.
+
+It can extract:
+
+* Page URL.
+* Page title.
+* DOM snapshot.
+* UI5 controls when available.
+* Visible actions.
 * Candidate selectors.
-* Automation confidence score.
-
-This is the recommended mode for analyzing real SAP Fiori applications.
+* Input fields.
+* Buttons.
+* Tables.
+* Links.
+* Control texts.
+* Accessibility attributes.
+* Automation confidence.
 
 ---
 
 ### Static HTML Analysis
 
-The tool can also analyze saved HTML files.
+The application can also analyze saved HTML files.
 
-This mode is useful for:
+This is useful for:
 
-* Offline analysis.
-* Documentation.
+* Offline testing.
 * Training.
+* Technical documentation.
+* Demonstrations.
 * Evidence capture.
-* Sharing simplified examples.
-* Testing parser behavior without accessing a real SAP system.
+* Parser validation.
 
-Static HTML analysis is less powerful than live browser inspection because SAPUI5 runtime information may not be available once the page is saved as plain HTML.
-
----
-
-### UI5 Logical Control Tree
-
-SAPUI5 applications are not only HTML pages. They are built from UI5 controls such as:
-
-* `sap.m.Button`
-* `sap.m.Input`
-* `sap.m.Table`
-* `sap.m.Page`
-* `sap.m.Panel`
-* `sap.ui.comp.smarttable.SmartTable`
-* `sap.ui.layout.form.SimpleForm`
-
-Fiori Inspector Studio attempts to extract and represent this logical control structure so that automation can be based on meaningful application objects rather than unstable screen coordinates.
+Static HTML mode is less powerful than live CDP mode because SAPUI5 runtime information may not be available in a saved HTML file.
 
 ---
 
 ### Action Discovery
 
-The tool identifies candidate UI actions such as:
+The tool identifies potential automation targets such as:
 
 * Buttons.
-* Input fields.
 * Search fields.
+* Input fields.
 * Links.
 * Tabs.
-* Table rows.
-* Table cells.
 * Menu items.
+* Table cells.
+* Table rows.
 * Toolbar actions.
 
-Each detected action may include:
+Each action may include:
 
 * Visible text.
-* Control type.
-* DOM selector.
-* UI5 ID.
-* Accessibility role.
-* Automation confidence.
+* Selector candidate.
+* HTML tag.
+* UI5 ID when available.
+* Role.
+* Confidence score.
 * Suggested interaction type.
-
----
-
-### Selector Recommendations
-
-The tool generates selector candidates that may be useful for automation.
-
-Examples:
-
-```css
-#application-ZMM-display-component---Main--searchButton
-[id$='--searchButton']
-button[aria-label='Search']
-.sapMBtn
-```
-
-The objective is to help the user choose selectors that are:
-
-* Stable.
-* Readable.
-* Easy to maintain.
-* Less dependent on generated DOM details.
-* Suitable for WebDriver-based automation.
 
 ---
 
 ### Workflow Support
 
-The project includes support for YAML-based workflows.
+The project supports YAML workflows to transform analysis into repeatable automation scenarios.
 
 Example:
 
@@ -193,7 +180,7 @@ steps:
     url: "https://fiori.example.com/sap/bc/ui2/flp"
 
   - action: wait_ui5
-    timeout_secs: 90
+    timeout_secs: 60
 
   - action: snapshot
     save_as: "01_home_snapshot.json"
@@ -209,22 +196,39 @@ steps:
     save_as: "02_after_search.json"
 ```
 
-This makes it possible to transform exploratory analysis into reproducible automation scenarios.
+---
+
+## Technical Stack
+
+The project uses:
+
+* **Rust**
+* **Axum**
+* **Tokio**
+* **Chrome DevTools Protocol**
+* **Reqwest**
+* **Serde**
+* **Serde JSON**
+* **Serde YAML**
+* **TOML**
+* **Scraper**
+* **HTML / CSS / JavaScript**
 
 ---
 
-## 4. Architecture
-
-The project follows a modular Rust architecture.
+## Project Structure
 
 ```text
 fiori-inspector-studio-rs/
 ├── Cargo.toml
+├── Cargo.lock
 ├── README.md
+├── INSTALAR_Y_USAR.md
 ├── config/
 │   └── local.toml.example
 ├── docs/
-│   └── arquitectura.md
+│   ├── arquitectura.md
+│   └── arquitectura_interactiva.md
 ├── examples/
 │   └── static_fiori_fragment.html
 ├── workflows/
@@ -249,41 +253,25 @@ fiori-inspector-studio-rs/
 
 ---
 
-## 5. Technical Stack
+## Requirements
 
-The project is built with:
+Required:
 
-* **Rust** as the main programming language.
-* **Axum** for the local web server.
-* **Tokio** for asynchronous execution.
-* **Thirtyfour** for WebDriver integration.
-* **Scraper** for static HTML parsing.
-* **Serde / Serde JSON / Serde YAML** for structured data.
-* **TOML** for configuration.
-* **HTML, CSS and JavaScript** for the local interactive studio.
-
----
-
-## 6. Requirements
-
-### Required
-
-* Rust stable toolchain.
+* Rust stable.
 * Cargo.
-* A modern browser.
+* Chrome or Chromium.
 * Linux, Windows or macOS.
 
-### Recommended for live Fiori analysis
+Recommended:
 
-* Google Chrome or Chromium.
-* ChromeDriver.
-* Access to a SAP Fiori / SAPUI5 application.
-* Valid SAP user authorization.
-* Permission to analyze or automate the target environment.
+* Ubuntu 24.04 or later.
+* Chromium or Google Chrome.
+* Access to an authorized SAP Fiori environment.
+* Permission to inspect or automate the target application.
 
 ---
 
-## 7. Installation
+## Installation
 
 Clone the repository:
 
@@ -292,82 +280,16 @@ git clone https://github.com/ansonTGN/Fiori-Inspector.git
 cd Fiori-Inspector
 ```
 
-Build the application:
+Build:
 
 ```bash
 cargo build
 ```
 
-Run tests:
-
-```bash
-cargo test
-```
-
-Format code:
-
-```bash
-cargo fmt
-```
-
-Run static checks:
-
-```bash
-cargo clippy --all-targets -- -D warnings
-```
-
----
-
-## 8. Configuration
-
-Copy the example configuration:
-
-```bash
-cp config/local.toml.example config/local.toml
-```
-
-Example configuration:
-
-```toml
-[server]
-bind = "127.0.0.1:7820"
-
-[browser]
-webdriver_url = "http://127.0.0.1:9515"
-browser = "chrome"
-headless = false
-accept_insecure_certs = true
-window_width = 1440
-window_height = 1000
-```
-
-Do not commit local configuration files containing sensitive information.
-
-Recommended `.gitignore` entries:
-
-```gitignore
-/target/
-.env
-.env.*
-config/local.toml
-runs/
-*.log
-```
-
----
-
-## 9. Usage
-
-### Start the Interactive Studio
+Run:
 
 ```bash
 cargo run
-```
-
-or explicitly:
-
-```bash
-cargo run -- serve
 ```
 
 Open:
@@ -378,39 +300,102 @@ http://127.0.0.1:7820
 
 ---
 
-### Start ChromeDriver
+## Configuration
 
-For live browser inspection, start ChromeDriver in a separate terminal:
-
-```bash
-chromedriver --port=9515
-```
-
-Check status:
+Copy the example configuration:
 
 ```bash
-curl http://127.0.0.1:9515/status
+cp config/local.toml.example config/local.toml
 ```
 
-Then start the studio:
+Example:
+
+```toml
+[server]
+bind = "127.0.0.1:7820"
+
+[browser]
+cdp_url = "http://127.0.0.1:9222"
+chrome_binary = "google-chrome"
+auto_launch = true
+headless = false
+accept_insecure_certs = true
+window_width = 1600
+window_height = 1000
+user_data_dir = "./.browser-profile-cdp"
+```
+
+If you use Chromium instead of Google Chrome:
+
+```toml
+chrome_binary = "chromium"
+```
+
+or:
+
+```toml
+chrome_binary = "chromium-browser"
+```
+
+---
+
+## Running the Studio
+
+Simple mode:
 
 ```bash
 cargo run
 ```
 
-Open the web interface and enter the SAP Fiori URL to inspect.
-
----
-
-### Capture a Live Fiori Snapshot from CLI
+Explicit mode:
 
 ```bash
-cargo run -- snapshot-browser \
-  --url "https://your-fiori-server/sap/bc/ui2/flp" \
-  --output runs/fiori_snapshot.json
+cargo run -- serve
+```
+
+Then open:
+
+```text
+http://127.0.0.1:7820
 ```
 
 ---
+
+## Manual Chrome / Chromium CDP Start
+
+If automatic launch is disabled, start Chrome manually:
+
+```bash
+google-chrome \
+  --remote-debugging-port=9222 \
+  --user-data-dir=./.browser-profile-cdp \
+  --window-size=1600,1000
+```
+
+Or with Chromium:
+
+```bash
+chromium \
+  --remote-debugging-port=9222 \
+  --user-data-dir=./.browser-profile-cdp \
+  --window-size=1600,1000
+```
+
+Check CDP status:
+
+```bash
+curl http://127.0.0.1:9222/json/version
+```
+
+Then run:
+
+```bash
+cargo run
+```
+
+---
+
+## CLI Usage
 
 ### Analyze Static HTML
 
@@ -420,26 +405,28 @@ cargo run -- analyze-html \
   --output runs/static_snapshot.json
 ```
 
----
+### Capture a Live Fiori Snapshot
 
-### Print Snapshot Summary
+```bash
+cargo run -- snapshot-cdp \
+  --url "https://your-fiori-server/sap/bc/ui2/flp" \
+  --output runs/fiori_snapshot.json
+```
+
+### Print Summary
 
 ```bash
 cargo run -- summary \
   --input runs/fiori_snapshot.json
 ```
 
----
-
-### Print UI5 Control Tree
+### Print UI5 / DOM Tree
 
 ```bash
 cargo run -- tree \
   --input runs/fiori_snapshot.json \
   --max-depth 6
 ```
-
----
 
 ### List Automation Actions
 
@@ -458,190 +445,112 @@ cargo run -- actions \
 
 ---
 
-## 10. Recommended Workflow
+## Recommended Professional Workflow
 
-A professional analysis workflow may look like this:
-
-1. Start ChromeDriver.
-2. Start Fiori Inspector Studio.
-3. Open the local web interface.
-4. Enter the target SAP Fiori URL.
-5. Log in manually if required.
-6. Capture the current screen.
-7. Review detected controls.
-8. Review candidate actions.
-9. Inspect selectors.
-10. Identify stable UI5 IDs.
-11. Detect bindings and OData traces.
-12. Generate an initial workflow.
-13. Test the workflow.
-14. Refine selectors and waits.
-15. Document the automation scenario.
+1. Start the studio.
+2. Open the local web interface.
+3. Launch or connect to Chrome through CDP.
+4. Open the SAP Fiori application.
+5. Log in manually if needed.
+6. Navigate to the target Fiori screen.
+7. Capture a snapshot.
+8. Review controls, DOM structure and actions.
+9. Identify stable selectors.
+10. Generate a YAML workflow.
+11. Test the workflow in a non-production environment.
+12. Refine selectors and waits.
+13. Document the automation scenario.
 
 ---
 
-## 11. Automation Strategy
+## Automation Strategy
 
-The recommended automation strategy is:
+Recommended priority:
 
-1. Prefer official APIs and OData services when possible.
-2. Use UI5 control inspection to understand the application.
-3. Use WebDriver automation only when API-level automation is not available.
+1. Prefer official SAP APIs and OData services where possible.
+2. Use Fiori Inspector Studio to understand the UI.
+3. Use UI-level automation only when API-level automation is not available.
 4. Avoid coordinate-based automation.
-5. Avoid brittle selectors based only on generated CSS classes.
-6. Prefer stable IDs, semantic labels and accessibility attributes.
-7. Capture snapshots before and after important actions.
-8. Store workflows as version-controlled YAML files.
-9. Validate automations in non-production environments first.
+5. Prefer stable IDs, semantic labels and accessibility attributes.
+6. Capture evidence before and after critical steps.
+7. Store workflows in version control.
+8. Validate everything in test environments before production use.
 
 ---
 
-## 12. Security and Compliance
+## Security Notes
 
-This tool is intended for legitimate analysis, testing, documentation and automation in authorized SAP environments.
+This tool must only be used in authorized SAP environments.
 
-Important recommendations:
+Important rules:
 
+* Do not commit passwords.
+* Do not commit cookies.
+* Do not commit SAP tokens.
+* Do not commit `.env`.
+* Do not commit `config/local.toml` if it contains internal URLs or credentials.
+* Keep the local web server bound to `127.0.0.1`.
+* Do not expose the studio to the internet.
 * Use only with explicit authorization.
-* Do not store SAP passwords in the repository.
-* Do not commit cookies, tokens or session files.
-* Do not expose the local studio publicly.
-* Keep the server bound to `127.0.0.1` unless there is a controlled reason to do otherwise.
-* Use test or development environments whenever possible.
-* Follow corporate cybersecurity and SAP governance policies.
+* Respect corporate cybersecurity policies.
 * Do not use this tool to bypass access controls.
-* Respect user permissions and audit requirements.
+
+Recommended `.gitignore`:
+
+```gitignore
+/target/
+.env
+.env.*
+config/local.toml
+runs/
+*.log
+*.tmp
+.browser-profile-cdp/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+```
 
 ---
 
-## 13. Limitations
-
-Fiori Inspector Studio is not a replacement for official SAP APIs, SAP Gateway, SAP Business Application Studio or SAP Fiori Tools.
+## Limitations
 
 Known limitations:
 
-* Static HTML mode cannot fully reconstruct the SAPUI5 runtime.
-* Dynamically generated IDs may change between sessions.
-* Some UI5 controls may not expose all metadata.
-* Applications using custom controls may require additional extractor logic.
-* Authentication flows depend on the corporate SAP landscape.
-* WebDriver automation may require specific browser and driver versions.
-* Highly customized Fiori applications may need project-specific heuristics.
+* Static HTML mode cannot fully reconstruct SAPUI5 runtime state.
+* Some SAPUI5 controls may use generated IDs.
+* Highly customized Fiori applications may require additional heuristics.
+* CDP requires a locally accessible Chrome or Chromium instance.
+* Corporate SSO flows may require manual login.
+* Not all OData endpoints can be inferred from the UI alone.
+* This tool is not an official SAP product.
 
 ---
 
-## 14. Roadmap
+## Roadmap
 
 Possible future improvements:
 
-* OData metadata correlation.
-* Automatic mapping between UI5 bindings and OData entities.
-* Visual tree graph.
-* Screenshot annotation.
-* Stable selector scoring engine.
-* Workflow recorder.
+* Full workflow recorder.
 * Workflow replay.
-* Export to Playwright.
-* Export to Selenium-compatible scripts.
-* Export to Rust automation modules.
-* Integration with SAP Gateway client.
+* OData metadata correlation.
+* Screenshot annotation.
+* HTML evidence reports.
+* PDF export.
+* Selector stability scoring.
+* Visual UI5 tree graph.
+* Playwright export.
+* Selenium export.
+* Rust automation code generation.
+* Batch analysis of multiple Fiori apps.
+* Integration with SAP Gateway/OData client.
 * Authentication profile management.
-* Test evidence reports in HTML/PDF.
-* Role-based inspection templates.
-* Support for batch analysis of multiple Fiori apps.
-* CI/CD validation of automation workflows.
+* CI/CD workflow validation.
 
 ---
 
-## 15. Project Philosophy
-
-The project follows several design principles:
-
-* Make complex SAPUI5 structures understandable.
-* Favor clarity over hidden magic.
-* Prefer stable technical identifiers over fragile visual automation.
-* Keep the user interface simple and elegant.
-* Help non-experts understand what is happening.
-* Create reusable automation assets.
-* Support professional documentation and auditability.
-* Use Rust for safety, performance and maintainability.
-
----
-
-## 16. Example Use Cases
-
-Possible use cases include:
-
-* Understanding a new SAP Fiori application.
-* Preparing automation for repetitive business processes.
-* Creating technical documentation of Fiori screens.
-* Discovering UI5 control structures.
-* Identifying OData-related bindings.
-* Supporting QA and regression testing.
-* Building internal automation tools.
-* Training technical teams in SAPUI5 inspection.
-* Migrating manual SAP interactions to structured workflows.
-* Comparing Fiori behavior across environments.
-
----
-
-## 17. Development Commands
-
-Build:
-
-```bash
-cargo build
-```
-
-Run:
-
-```bash
-cargo run
-```
-
-Run with explicit command:
-
-```bash
-cargo run -- serve
-```
-
-Run tests:
-
-```bash
-cargo test
-```
-
-Format:
-
-```bash
-cargo fmt
-```
-
-Lint:
-
-```bash
-cargo clippy --all-targets -- -D warnings
-```
-
-Generate documentation:
-
-```bash
-cargo doc --open
-```
-
----
-
-## 18. Repository
-
-GitHub repository:
-
-```text
-https://github.com/ansonTGN/Fiori-Inspector
-```
-
----
-
-## 19. Author
+## Author
 
 **Angel A. Urbina**
 
@@ -655,9 +564,7 @@ https://github.com/ansonTGN
 
 ---
 
-## 20. License
-
-This project can be distributed under the MIT License unless another license is explicitly defined by the author.
+## License
 
 Suggested license:
 
@@ -668,12 +575,12 @@ Copyright (c) Angel A. Urbina
 
 ---
 
-## 21. Disclaimer
+## Disclaimer
 
-This project is an independent technical tool for inspection, documentation and automation support.
+This is an independent technical tool for SAP Fiori / SAPUI5 inspection, documentation and automation support.
 
 It is not an official SAP product.
 
 SAP, SAP Fiori, SAPUI5 and related names are trademarks or registered trademarks of SAP SE or its affiliates.
 
-Use this software responsibly and only in environments where you have permission to inspect, test or automate applications.
+Use this software responsibly and only in environments where you have explicit permission.

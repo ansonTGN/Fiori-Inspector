@@ -11,8 +11,8 @@ pub async fn read_snapshot(path: &Path) -> Result<PageSnapshot> {
 }
 
 pub fn print_summary(snapshot: &PageSnapshot) {
-    println!("URL: {}", snapshot.url.as_deref().unwrap_or("-") );
-    println!("Título: {}", snapshot.title.as_deref().unwrap_or("-") );
+    println!("URL: {}", snapshot.url.as_deref().unwrap_or("-"));
+    println!("Título: {}", snapshot.title.as_deref().unwrap_or("-"));
     println!("Modo: {:?}", snapshot.mode);
     println!("UI5 detectado: {}", snapshot.ui5.detected);
     if let Some(version) = &snapshot.ui5.version {
@@ -46,7 +46,8 @@ pub fn print_tree(snapshot: &PageSnapshot, max_depth: usize) {
 pub fn print_actions(snapshot: &PageSnapshot, filter: Option<&str>) {
     let filter_lc = filter.map(|s| s.to_ascii_lowercase());
     for h in &snapshot.action_hints {
-        let haystack = format!("{} {} {:?}", h.label, h.selector, h.control_id).to_ascii_lowercase();
+        let haystack =
+            format!("{} {} {:?}", h.label, h.selector, h.control_id).to_ascii_lowercase();
         if let Some(f) = &filter_lc {
             if !haystack.contains(f) {
                 continue;
@@ -61,12 +62,22 @@ pub fn print_actions(snapshot: &PageSnapshot, filter: Option<&str>) {
     }
 }
 
-fn print_control(c: &Ui5Control, by_parent: &BTreeMap<Option<String>, Vec<&Ui5Control>>, depth: usize, max_depth: usize) {
+fn print_control(
+    c: &Ui5Control,
+    by_parent: &BTreeMap<Option<String>, Vec<&Ui5Control>>,
+    depth: usize,
+    max_depth: usize,
+) {
     if depth > max_depth {
         return;
     }
     let indent = "  ".repeat(depth);
-    let label = c.text.as_deref().or(c.title.as_deref()).or(c.value.as_deref()).unwrap_or("");
+    let label = c
+        .text
+        .as_deref()
+        .or(c.title.as_deref())
+        .or(c.value.as_deref())
+        .unwrap_or("");
     let ty = c.control_type.as_deref().unwrap_or("unknown");
     let vis = match c.visible {
         Some(true) => "visible",

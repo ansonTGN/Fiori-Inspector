@@ -15,18 +15,25 @@ use tracing_subscriber::EnvFilter;
 #[derive(Debug, Parser)]
 #[command(name = "fiori-inspector-studio")]
 #[command(version)]
-#[command(about = "Estudio interactivo Rust para analizar SAP Fiori/SAPUI5 y preparar automatizaciones profesionales")]
-#[command(long_about = "Fiori Inspector Studio es una aplicación local para analizar SAP Fiori/SAPUI5.
+#[command(
+    about = "Estudio interactivo Rust para analizar SAP Fiori/SAPUI5 y preparar automatizaciones profesionales"
+)]
+#[command(
+    long_about = "Fiori Inspector Studio es una aplicación local para analizar SAP Fiori/SAPUI5.
 
 Uso recomendado para principiantes:
   cargo run
 
 Eso abrirá la interfaz web en http://127.0.0.1:7820.
 
-Para capturar una sesión Fiori viva necesitas ChromeDriver:
-  chromedriver --port=9515
+Para capturar una sesión Fiori viva NO necesitas ChromeDriver.
+La aplicación usa Chrome DevTools Protocol (CDP) y puede lanzar Chrome automáticamente.
 
-Después usa la interfaz web, que incluye una guía visual paso a paso.")]
+También puedes arrancarlo manualmente con:
+  google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp
+
+Después usa la interfaz web, que incluye una guía visual paso a paso."
+)]
 struct Cli {
     #[arg(short, long, global = true, value_name = "FILE")]
     config: Option<PathBuf>,
@@ -45,7 +52,8 @@ enum Commands {
         static_dir: PathBuf,
     },
 
-    /// Analiza una app Fiori viva usando WebDriver y extrae DOM + controles UI5.
+    /// Analiza una app Fiori viva usando CDP, sin ChromeDriver, y extrae DOM + controles UI5.
+    #[command(alias = "snapshot-cdp")]
     SnapshotBrowser {
         #[arg(long)]
         url: String,
@@ -95,7 +103,9 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .init();
 
     let cli = Cli::parse();
@@ -123,15 +133,26 @@ async fn main() -> Result<()> {
             report::print_summary(&snapshot);
         }
         Commands::AnalyzeHtml { input, output } => {
-            let snapshot = static_html::analyze_html_file(&input, cfg.extraction.max_text_len, cfg.extraction.max_dom_nodes).await?;
+            let snapshot = static_html::analyze_html_file(
+                &input,
+                cfg.extraction.max_text_len,
+                cfg.extraction.max_dom_nodes,
+            )
+            .await?;
             if let Some(path) = output {
                 browser::write_snapshot(&path, &snapshot, cfg.output.pretty_json).await?;
             }
             report::print_summary(&snapshot);
         }
-        Commands::RunWorkflow { workflow, output_dir } => {
+        Commands::RunWorkflow {
+            workflow,
+            output_dir,
+        } => {
             workflow::run_workflow_file(&cfg, &workflow, &output_dir).await?;
-            println!("Workflow finalizado. Resultados en: {}", output_dir.display());
+            println!(
+                "Workflow finalizado. Resultados en: {}",
+                output_dir.display()
+            );
         }
         Commands::Summary { input } => {
             let snapshot = report::read_snapshot(&input).await?;

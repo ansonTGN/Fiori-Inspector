@@ -6,12 +6,15 @@
 .env.*
 config/local.toml
 
-# Runs / outputs
+# Generated runs / outputs
 runs/
 *.log
 *.tmp
 
-# Editor
+# Local browser profile for CDP
+.browser-profile-cdp/
+
+# Editors
 .vscode/
 .idea/
 

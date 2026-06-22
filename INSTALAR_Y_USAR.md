@@ -31,13 +31,9 @@ http://127.0.0.1:7820
 
 ## 3. Para analizar una sesión Fiori real
 
-En otra terminal:
+La aplicación no usa ChromeDriver. Por defecto intentará lanzar Chrome/Chromium automáticamente mediante CDP.
 
-```bash
-chromedriver --port=9515
-```
-
-Luego arranca la aplicación:
+Arranca la aplicación:
 
 ```bash
 cargo run
@@ -66,14 +62,16 @@ cargo run -- actions --input runs/static_snapshot.json
 
 Con esta versión ya no debería ocurrir. `cargo run` arranca la web por defecto.
 
-### No conecta con ChromeDriver
+### No conecta con Chrome DevTools Protocol
 
-Comprueba:
+Si el arranque automático falla, abre CDP manualmente y comprueba el estado:
 
 ```bash
-chromedriver --port=9515
-curl http://127.0.0.1:9515/status
+google-chrome --remote-debugging-port=9222 --user-data-dir=./.browser-profile-cdp
+curl http://127.0.0.1:9222/json/version
 ```
+
+Si tu binario no se llama `google-chrome`, cambia `chrome_binary` en `config/local.toml` a `chromium` o `chromium-browser`.
 
 ### El puerto 7820 está ocupado
 

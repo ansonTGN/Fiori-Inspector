@@ -7,14 +7,28 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-pub async fn analyze_html_file(path: &Path, max_text_len: usize, max_nodes: usize) -> Result<PageSnapshot> {
+pub async fn analyze_html_file(
+    path: &Path,
+    max_text_len: usize,
+    max_nodes: usize,
+) -> Result<PageSnapshot> {
     let html = tokio::fs::read_to_string(path)
         .await
         .with_context(|| format!("No se pudo leer HTML: {}", path.display()))?;
-    Ok(analyze_html(&html, Some(path.to_string_lossy().to_string()), max_text_len, max_nodes))
+    Ok(analyze_html(
+        &html,
+        Some(path.to_string_lossy().to_string()),
+        max_text_len,
+        max_nodes,
+    ))
 }
 
-pub fn analyze_html(html: &str, url: Option<String>, max_text_len: usize, max_nodes: usize) -> PageSnapshot {
+pub fn analyze_html(
+    html: &str,
+    url: Option<String>,
+    max_text_len: usize,
+    max_nodes: usize,
+) -> PageSnapshot {
     let doc = Html::parse_document(html);
     let title = Selector::parse("title").ok().and_then(|sel| {
         doc.select(&sel)
@@ -74,7 +88,9 @@ pub fn analyze_html(html: &str, url: Option<String>, max_text_len: usize, max_no
         application: None,
         metrics,
         ui5: Ui5RuntimeInfo {
-            detected: html.contains("sap-ui-core") || html.contains("sap.ui") || html.contains("sapUiBody"),
+            detected: html.contains("sap-ui-core")
+                || html.contains("sap.ui")
+                || html.contains("sapUiBody"),
             version: None,
             bootstrapped: None,
             core_initialized: None,
@@ -95,15 +111,30 @@ fn element_to_dom_node(idx: usize, el: ElementRef<'_>, max_text_len: usize) -> D
     let text = {
         let raw = el.text().collect::<Vec<_>>().join(" ");
         let collapsed = collapse_text(&raw, max_text_len);
-        if collapsed.is_empty() { None } else { Some(collapsed) }
+        if collapsed.is_empty() {
+            None
+        } else {
+            Some(collapsed)
+        }
     };
     let classes = attr(el, "class")
         .map(|c| c.split_whitespace().map(|s| s.to_string()).collect())
         .unwrap_or_default();
 
     let interesting_attrs = [
-        "id", "role", "aria-label", "aria-labelledby", "aria-describedby", "title", "type", "name",
-        "data-sap-ui", "data-sap-ui-related", "data-sap-ui-fastnavgroup", "href", "value",
+        "id",
+        "role",
+        "aria-label",
+        "aria-labelledby",
+        "aria-describedby",
+        "title",
+        "type",
+        "name",
+        "data-sap-ui",
+        "data-sap-ui-related",
+        "data-sap-ui-fastnavgroup",
+        "href",
+        "value",
     ];
     let mut attributes = BTreeMap::new();
     for key in interesting_attrs {
@@ -148,7 +179,11 @@ fn dom_node_to_pseudo_control(node: &DomNode) -> Option<Ui5Control> {
         .iter()
         .any(|c| c.starts_with("sapM") || c.starts_with("sapUi") || c.starts_with("sapUx"))
         || node.attributes.contains_key("data-sap-ui")
-        || node.id.as_ref().map(|id| id.contains("---") || id.contains("--")).unwrap_or(false);
+        || node
+            .id
+            .as_ref()
+            .map(|id| id.contains("---") || id.contains("--"))
+            .unwrap_or(false);
 
     if !is_sapish {
         return None;
@@ -157,7 +192,11 @@ fn dom_node_to_pseudo_control(node: &DomNode) -> Option<Ui5Control> {
     let kind = infer_interactor(node);
     Some(Ui5Control {
         id: node.id.clone().unwrap_or_else(|| node.node_id.clone()),
-        control_type: node.attributes.get("data-sap-ui").cloned().or_else(|| node.semantic.clone()),
+        control_type: node
+            .attributes
+            .get("data-sap-ui")
+            .cloned()
+            .or_else(|| node.semantic.clone()),
         short_type: node.semantic.clone(),
         visible: Some(true),
         enabled: None,
@@ -200,10 +239,15 @@ fn action_hint_from_dom(node: &DomNode) -> Option<ActionHint> {
             .or_else(|| node.title.clone())
             .unwrap_or_else(|| node.id.clone().unwrap_or_else(|| node.tag.clone())),
         kind,
-        selector: node.selector_candidates.first().cloned().unwrap_or_else(|| node.tag.clone()),
+        selector: node
+            .selector_candidates
+            .first()
+            .cloned()
+            .unwrap_or_else(|| node.tag.clone()),
         control_id: node.id.clone(),
         confidence: 0.60,
-        rationale: "Elemento HTML accionable detectado por etiqueta, rol o clases SAPUI5.".to_string(),
+        rationale: "Elemento HTML accionable detectado por etiqueta, rol o clases SAPUI5."
+            .to_string(),
     })
 }
 
@@ -217,13 +261,15 @@ fn infer_interactor(node: &DomNode) -> Option<InteractorKind> {
         Some(InteractorKind::Link)
     } else if tag == "input" || tag == "textarea" || classes.contains("sapMInput") {
         Some(InteractorKind::Input)
-    } else if role == "combobox" || classes.contains("sapMComboBox") || classes.contains("sapMSlt") {
+    } else if role == "combobox" || classes.contains("sapMComboBox") || classes.contains("sapMSlt")
+    {
         Some(InteractorKind::ComboBox)
     } else if role == "checkbox" || classes.contains("sapMCb") {
         Some(InteractorKind::Checkbox)
     } else if role == "radio" || classes.contains("sapMRb") {
         Some(InteractorKind::RadioButton)
-    } else if tag == "table" || role == "table" || role == "grid" || classes.contains("sapMListTbl") {
+    } else if tag == "table" || role == "table" || role == "grid" || classes.contains("sapMListTbl")
+    {
         Some(InteractorKind::Table)
     } else if role == "tab" {
         Some(InteractorKind::Tab)
@@ -235,7 +281,10 @@ fn infer_interactor(node: &DomNode) -> Option<InteractorKind> {
 }
 
 fn attr(el: ElementRef<'_>, name: &str) -> Option<String> {
-    el.value().attr(name).map(|s| s.to_string()).filter(|s| !s.trim().is_empty())
+    el.value()
+        .attr(name)
+        .map(|s| s.to_string())
+        .filter(|s| !s.trim().is_empty())
 }
 
 fn collapse_text(s: &str, max: usize) -> String {
@@ -263,7 +312,10 @@ fn css_escape(id: &str) -> String {
 }
 
 fn stable_suffix(id: &str) -> Option<String> {
-    id.rsplit("--").next().filter(|s| !s.is_empty()).map(|s| format!("--{s}"))
+    id.rsplit("--")
+        .next()
+        .filter(|s| !s.is_empty())
+        .map(|s| format!("--{s}"))
 }
 
 fn is_actionable_tag(tag: &str) -> bool {
@@ -271,7 +323,19 @@ fn is_actionable_tag(tag: &str) -> bool {
 }
 
 fn is_actionable_role(role: &str) -> bool {
-    matches!(role, "button" | "link" | "textbox" | "combobox" | "checkbox" | "radio" | "tab" | "menuitem" | "grid" | "table")
+    matches!(
+        role,
+        "button"
+            | "link"
+            | "textbox"
+            | "combobox"
+            | "checkbox"
+            | "radio"
+            | "tab"
+            | "menuitem"
+            | "grid"
+            | "table"
+    )
 }
 
 fn semantic_from_tag_and_classes(tag: &str, classes: Option<&str>) -> Option<String> {
