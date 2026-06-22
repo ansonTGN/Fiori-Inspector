@@ -371,10 +371,12 @@ pub async fn wait_for_ui5(
     }
 }
 
+#[allow(dead_code)]
 pub async fn click(page: &mut CdpPage, selector: &str) -> Result<()> {
     click_target(page, Some(selector), None, None).await
 }
 
+#[allow(dead_code)]
 pub async fn input(page: &mut CdpPage, selector: &str, value: &str, clear: bool) -> Result<()> {
     input_target(page, Some(selector), None, value, clear).await
 }
