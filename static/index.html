@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fiori Inspector Studio</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="aurora aurora-one"></div>
+  <div class="aurora aurora-two"></div>
+
+  <main class="shell">
+    <aside class="sidebar glass">
+      <div class="brand">
+        <div class="logo">⌘</div>
+        <div>
+          <h1>Fiori Inspector</h1>
+          <p>Studio Rust · SAPUI5</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="capture">Captura</button>
+        <button class="nav-item" data-view="overview">Resumen</button>
+        <button class="nav-item" data-view="actions">Acciones</button>
+        <button class="nav-item" data-view="tree">Árbol UI5</button>
+        <button class="nav-item" data-view="bindings">Bindings / OData</button>
+        <button class="nav-item" data-view="risks">Riesgos</button>
+        <button class="nav-item" data-view="workflow">Workflow</button>
+        <button class="nav-item help-nav" data-view="help">Ayuda</button>
+      </nav>
+
+      <section class="history">
+        <div class="section-title">Snapshots</div>
+        <div id="snapshotList" class="snapshot-list empty">Sin capturas todavía</div>
+      </section>
+
+      <footer class="side-footer">
+        <span id="healthDot" class="dot"></span>
+        <span id="healthText">Conectando…</span>
+      </footer>
+    </aside>
+
+    <section class="content">
+      <header class="hero glass">
+        <div>
+          <p class="eyebrow">Interactive DOM + UI5 intelligence</p>
+          <h2>Analiza Fiori como un mapa de objetos automatizables</h2>
+          <p class="hero-text">Extrae controles SAPUI5, selectores, bindings, endpoints OData y riesgos de automatización desde una sesión viva o desde HTML guardado.</p>
+        </div>
+        <div class="hero-side">
+          <div class="score-ring" id="scoreRing">
+            <span id="scoreValue">—</span>
+            <small>calidad</small>
+          </div>
+          <button class="ghost help-pill" id="openHelpBtn">Guía de uso</button>
+        </div>
+      </header>
+
+      <section class="toolbar glass">
+        <div class="search-wrap">
+          <span>⌕</span>
+          <input id="globalSearch" type="search" placeholder="Buscar control, selector, binding, texto…" />
+        </div>
+        <button class="ghost" id="downloadJsonBtn">JSON</button>
+        <button class="ghost" id="downloadWorkflowBtn">YAML</button>
+        <button class="primary" id="copySummaryBtn">Copiar resumen</button>
+      </section>
+
+      <section id="capture" class="view active-view">
+        <div class="grid two">
+          <article class="card glass">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Modo recomendado</p>
+                <h3>Capturar sesión Fiori viva</h3>
+              </div>
+              <span class="pill">WebDriver</span>
+            </div>
+            <p class="muted">Usa ChromeDriver/GeckoDriver. Ideal para extraer árbol lógico UI5, modelos, bindings y URLs reales observadas por la app.</p>
+            <label class="field">
+              <span>URL Fiori</span>
+              <input id="browserUrl" placeholder="https://fiori.empresa.com/sap/bc/ui2/flp#..." />
+            </label>
+            <button class="primary wide" id="captureBrowserBtn">Capturar sesión viva</button>
+            <div class="hint">Arranca antes: <code>chromedriver --port=9515</code>. Si hay SSO, configura <code>manual_login_wait_secs</code>.</div>
+          </article>
+
+          <article class="card glass">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Modo offline</p>
+                <h3>Analizar HTML guardado</h3>
+              </div>
+              <span class="pill subtle">Estático</span>
+            </div>
+            <p class="muted">Útil para evidencias, documentación o una primera exploración. No ve modelos vivos ni estado dinámico completo.</p>
+            <label class="field file-field">
+              <span>Archivo HTML</span>
+              <input id="htmlFile" type="file" accept=".html,.htm,text/html" />
+            </label>
+            <label class="field">
+              <span>O pega HTML</span>
+              <textarea id="htmlPaste" rows="7" placeholder="<!doctype html>..."></textarea>
+            </label>
+            <button class="secondary wide" id="analyzeHtmlBtn">Analizar HTML</button>
+          </article>
+        </div>
+      </section>
+
+      <section id="overview" class="view">
+        <div id="metricGrid" class="metrics"></div>
+        <article class="card glass">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Lectura ejecutiva</p>
+              <h3>Diagnóstico de automatización</h3>
+            </div>
+          </div>
+          <p id="executiveSummary" class="summary-text">Carga una captura para obtener el diagnóstico.</p>
+          <div id="patterns" class="chips"></div>
+        </article>
+      </section>
+
+      <section id="actions" class="view">
+        <article class="card glass">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Click, input, tabla, navegación</p>
+              <h3>Acciones candidatas</h3>
+            </div>
+          </div>
+          <div id="actionsList" class="object-list empty">Sin acciones cargadas</div>
+        </article>
+      </section>
+
+      <section id="tree" class="view">
+        <article class="card glass">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Jerarquía lógica</p>
+              <h3>Árbol de controles UI5</h3>
+            </div>
+            <button class="ghost" id="expandTreeBtn">Expandir</button>
+          </div>
+          <div id="treeView" class="tree empty">Sin árbol cargado</div>
+        </article>
+      </section>
+
+      <section id="bindings" class="view">
+        <div class="grid two">
+          <article class="card glass">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Datos de pantalla</p>
+                <h3>Bindings UI5</h3>
+              </div>
+            </div>
+            <div id="bindingsList" class="object-list empty">Sin bindings detectados</div>
+          </article>
+          <article class="card glass">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Integración</p>
+                <h3>Endpoints OData</h3>
+              </div>
+            </div>
+            <div id="odataList" class="object-list empty">Sin endpoints detectados</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="risks" class="view">
+        <article class="card glass">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Robustez</p>
+              <h3>Riesgos y recomendaciones</h3>
+            </div>
+          </div>
+          <div id="riskList" class="object-list empty">Sin riesgos cargados</div>
+          <div id="recommendations" class="recommendations"></div>
+        </article>
+      </section>
+
+      <section id="workflow" class="view">
+        <article class="card glass">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Automatización declarativa</p>
+              <h3>Workflow YAML generado</h3>
+            </div>
+            <button class="ghost" id="copyWorkflowBtn">Copiar</button>
+          </div>
+          <pre id="workflowYaml" class="code-block">Carga una captura para generar un workflow.</pre>
+        </article>
+      </section>
+
+
+      <section id="help" class="view">
+        <article class="card glass help-hero-card">
+          <div class="help-kicker">Guía para empezar desde cero</div>
+          <h3>Usa Fiori Inspector Studio sin saber SAPUI5, DOM ni Rust</h3>
+          <p class="help-lead">
+            Esta herramienta mira una pantalla Fiori como si fuera un mapa técnico: identifica botones, campos, tablas, textos,
+            bindings de datos, endpoints OData y selectores seguros para preparar automatizaciones profesionales.
+          </p>
+          <div class="help-actions">
+            <button class="primary" id="helpStartBtn">Empezar por Captura</button>
+            <button class="ghost copy-command" data-copy="cargo run -- --config config/local.toml serve">Copiar comando de arranque</button>
+          </div>
+        </article>
+
+        <div class="help-grid three">
+          <article class="help-card glass">
+            <span class="help-icon">1</span>
+            <h4>Arranca la aplicación</h4>
+            <p>Desde la carpeta del proyecto ejecuta el servidor local. Luego abre la URL que aparece en pantalla.</p>
+            <div class="command-line"><code>cargo run -- --config config/local.toml serve</code><button class="mini copy-command" data-copy="cargo run -- --config config/local.toml serve">Copiar</button></div>
+          </article>
+          <article class="help-card glass">
+            <span class="help-icon">2</span>
+            <h4>Prepara ChromeDriver</h4>
+            <p>Solo es necesario para analizar una sesión Fiori viva. Déjalo abierto en otra terminal.</p>
+            <div class="command-line"><code>chromedriver --port=9515</code><button class="mini copy-command" data-copy="chromedriver --port=9515">Copiar</button></div>
+          </article>
+          <article class="help-card glass">
+            <span class="help-icon">3</span>
+            <h4>Captura o pega HTML</h4>
+            <p>Usa “Capturar sesión viva” para Fiori real, o “Analizar HTML” para aprender sin conectarte a SAP.</p>
+            <button class="secondary wide" id="helpOpenCaptureBtn">Ir a Captura</button>
+          </article>
+        </div>
+
+        <div class="grid two help-section-grid">
+          <article class="card glass">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Conceptos básicos</p>
+                <h3>Qué significa cada cosa</h3>
+              </div>
+            </div>
+            <div class="concept-list">
+              <div class="concept"><strong>Fiori</strong><span>La interfaz web moderna de SAP. Es la pantalla que ve el usuario.</span></div>
+              <div class="concept"><strong>SAPUI5 / UI5</strong><span>La librería JavaScript que construye los controles: botones, tablas, formularios y vistas.</span></div>
+              <div class="concept"><strong>DOM</strong><span>El HTML real que el navegador renderiza. Sirve para buscar selectores, pero no explica toda la lógica UI5.</span></div>
+              <div class="concept"><strong>Control UI5</strong><span>Objeto lógico de SAPUI5. Es más estable que mirar solo etiquetas HTML.</span></div>
+              <div class="concept"><strong>Binding</strong><span>Relación entre un campo de pantalla y un dato del modelo. Ayuda a entender qué información se muestra.</span></div>
+              <div class="concept"><strong>OData</strong><span>Servicios de datos que suelen alimentar Fiori. Permiten descubrir entidades, filtros y llamadas reales.</span></div>
+              <div class="concept"><strong>Selector</strong><span>Ruta CSS propuesta para hacer click, escribir o localizar un control durante una automatización.</span></div>
+              <div class="concept"><strong>Workflow</strong><span>Receta YAML con pasos repetibles: abrir página, esperar UI5, click, escribir, pulsar Enter y guardar snapshot.</span></div>
+            </div>
+          </article>
+
+          <article class="card glass">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Elección rápida</p>
+                <h3>Qué modo debes usar</h3>
+              </div>
+            </div>
+            <div class="decision-cards">
+              <div class="decision-card recommended">
+                <strong>Sesión Fiori viva</strong>
+                <p>Usa este modo cuando tengas acceso real a SAP/Fiori. Es el más completo porque detecta UI5, modelos y estado dinámico.</p>
+                <span>Recomendado para automatización profesional</span>
+              </div>
+              <div class="decision-card">
+                <strong>HTML guardado</strong>
+                <p>Úsalo para aprender, documentar una pantalla o analizar evidencias sin conectarte al entorno SAP.</p>
+                <span>Bueno para pruebas offline</span>
+              </div>
+            </div>
+            <div class="callout info">
+              <strong>Regla práctica:</strong> si puedes abrir la app Fiori real, usa WebDriver. Si solo tienes un fichero HTML, usa análisis offline.
+            </div>
+          </article>
+        </div>
+
+        <article class="card glass">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Ruta guiada</p>
+              <h3>Cómo trabajar paso a paso</h3>
+            </div>
+          </div>
+          <div class="timeline">
+            <div class="timeline-step"><span>01</span><div><strong>Arranca el backend Rust</strong><p>Ejecuta <code>cargo run -- --config config/local.toml serve</code> y abre <code>http://127.0.0.1:7820</code>.</p></div></div>
+            <div class="timeline-step"><span>02</span><div><strong>Abre ChromeDriver</strong><p>En otra terminal ejecuta <code>chromedriver --port=9515</code>. Si usas Firefox, configura GeckoDriver.</p></div></div>
+            <div class="timeline-step"><span>03</span><div><strong>Captura la pantalla Fiori</strong><p>Pega la URL Fiori. Si hay login corporativo, entra manualmente y espera a que la página quede cargada.</p></div></div>
+            <div class="timeline-step"><span>04</span><div><strong>Lee el resumen</strong><p>Revisa calidad, número de controles, acciones candidatas, endpoints OData y riesgos.</p></div></div>
+            <div class="timeline-step"><span>05</span><div><strong>Elige acciones fiables</strong><p>Prioriza selectores basados en IDs estables, textos claros y controles visibles. Evita coordenadas de pantalla.</p></div></div>
+            <div class="timeline-step"><span>06</span><div><strong>Genera un workflow</strong><p>Copia el YAML generado y conviértelo en una automatización repetible y auditable.</p></div></div>
+          </div>
+        </article>
+
+        <div class="grid two help-section-grid">
+          <article class="card glass">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Lectura de resultados</p>
+                <h3>Cómo interpretar cada panel</h3>
+              </div>
+            </div>
+            <div class="panel-guide">
+              <div><b>Resumen</b><span>Diagnóstico general y calidad de automatización.</span></div>
+              <div><b>Acciones</b><span>Controles sobre los que probablemente puedes hacer click o escribir.</span></div>
+              <div><b>Árbol UI5</b><span>Jerarquía lógica de la pantalla, parecida a un árbol de objetos SAP GUI.</span></div>
+              <div><b>Bindings / OData</b><span>Datos ligados a controles y servicios detectados.</span></div>
+              <div><b>Riesgos</b><span>Problemas que pueden romper la automatización: IDs dinámicos, baja confianza o ausencia de UI5.</span></div>
+              <div><b>Workflow</b><span>Base YAML para repetir pasos de navegación e interacción.</span></div>
+            </div>
+          </article>
+
+          <article class="card glass">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">Buenas prácticas</p>
+                <h3>Automatización segura y mantenible</h3>
+              </div>
+            </div>
+            <ul class="beautiful-list">
+              <li>Trabaja primero en entorno de desarrollo o calidad, no en producción.</li>
+              <li>No guardes contraseñas en workflows, código fuente ni capturas JSON.</li>
+              <li>Usa usuarios técnicos o roles controlados cuando la política SAP lo permita.</li>
+              <li>Prefiere OData/API para operaciones críticas y UI solo para descubrimiento o validación visual.</li>
+              <li>Documenta cada workflow con objetivo, pantalla, transacción equivalente y riesgos.</li>
+              <li>Versiona los workflows en Git para saber cuándo y por qué cambian.</li>
+            </ul>
+          </article>
+        </div>
+
+        <article class="card glass">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Solución de problemas</p>
+              <h3>Errores frecuentes y cómo resolverlos</h3>
+            </div>
+          </div>
+          <div class="faq">
+            <details open>
+              <summary>No captura nada o dice que WebDriver no está disponible</summary>
+              <p>Abre otra terminal y ejecuta <code>chromedriver --port=9515</code>. Luego comprueba <code>curl http://127.0.0.1:9515/status</code>.</p>
+            </details>
+            <details>
+              <summary>La página queda en login corporativo o SSO</summary>
+              <p>Configura más tiempo de espera en <code>config/local.toml</code>, parámetro <code>manual_login_wait_secs</code>, para poder autenticarte manualmente.</p>
+            </details>
+            <details>
+              <summary>No detecta SAPUI5</summary>
+              <p>Puede que la pantalla esté dentro de un iframe, no sea Fiori/SAPUI5, o todavía no haya terminado de cargar. Prueba a esperar más tiempo o analizar desde una URL más interna.</p>
+            </details>
+            <details>
+              <summary>Los selectores parecen muy largos o inestables</summary>
+              <p>Prioriza candidatos como <code>[id$='--nombreControl']</code>, textos visibles, roles ARIA y controles con alta confianza. Evita selectores con índices frágiles.</p>
+            </details>
+            <details>
+              <summary>La automatización falla después de cambiar de pantalla</summary>
+              <p>Añade pasos de espera, captura un nuevo snapshot después de cada navegación y usa selectores del estado final, no del estado inicial.</p>
+            </details>
+          </div>
+        </article>
+
+        <article class="card glass">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Comandos útiles</p>
+              <h3>Terminal mínima de supervivencia</h3>
+            </div>
+          </div>
+          <div class="command-grid">
+            <div class="command-line"><code>cargo build</code><button class="mini copy-command" data-copy="cargo build">Copiar</button></div>
+            <div class="command-line"><code>cargo run -- serve</code><button class="mini copy-command" data-copy="cargo run -- serve">Copiar</button></div>
+            <div class="command-line"><code>cargo run -- --config config/local.toml serve</code><button class="mini copy-command" data-copy="cargo run -- --config config/local.toml serve">Copiar</button></div>
+            <div class="command-line"><code>chromedriver --port=9515</code><button class="mini copy-command" data-copy="chromedriver --port=9515">Copiar</button></div>
+            <div class="command-line"><code>cargo run -- analyze-html --input examples/static_fiori_fragment.html --output runs/static_snapshot.json</code><button class="mini copy-command" data-copy="cargo run -- analyze-html --input examples/static_fiori_fragment.html --output runs/static_snapshot.json">Copiar</button></div>
+            <div class="command-line"><code>cargo run -- summary --input runs/static_snapshot.json</code><button class="mini copy-command" data-copy="cargo run -- summary --input runs/static_snapshot.json">Copiar</button></div>
+          </div>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast">Listo</div>
+  <script src="/app.js"></script>
+</body>
+</html>

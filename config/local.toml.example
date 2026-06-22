@@ -1,0 +1,25 @@
+[browser]
+webdriver_url = "http://localhost:9515"
+browser = "chrome"
+headless = false
+accept_insecure_certs = true
+window_width = 1600
+window_height = 1000
+user_data_dir = "./.browser-profile"
+
+[fiori]
+wait_for_ui5 = true
+ui5_timeout_secs = 90
+manual_login_wait_secs = 0
+ready_selector = "body"
+
+[extraction]
+max_text_len = 240
+include_hidden_controls = false
+include_dom_nodes = true
+include_performance_urls = true
+max_controls = 5000
+max_dom_nodes = 3000
+
+[output]
+pretty_json = true

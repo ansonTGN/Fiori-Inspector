@@ -1,0 +1,20 @@
+# Rust
+/target/
+
+# Local config / secrets
+.env
+.env.*
+config/local.toml
+
+# Runs / outputs
+runs/
+*.log
+*.tmp
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

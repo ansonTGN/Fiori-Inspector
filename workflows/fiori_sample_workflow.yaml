@@ -1,0 +1,26 @@
+name: "Fiori DOM discovery sample"
+description: "Ejemplo de workflow para abrir una app Fiori, esperar UI5, extraer estructura y realizar una interacción controlada."
+
+steps:
+  - action: goto
+    url: "https://fiori.example.com/sap/bc/ui2/flp#Shell-home"
+
+  - action: wait_ui5
+    timeout_secs: 90
+
+  - action: snapshot
+    save_as: "01_home_snapshot.json"
+
+  # Sustituir por un selector real obtenido con el snapshot.
+  # - action: click
+  #   selector: "[id$='--searchField-search']"
+
+  # - action: input
+  #   selector: "input[id$='--searchField-I']"
+  #   value: "4500001234"
+
+  # - action: press
+  #   key: "Enter"
+
+  # - action: snapshot
+  #   save_as: "02_after_search_snapshot.json"
